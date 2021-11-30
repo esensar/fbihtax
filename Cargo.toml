@@ -1,0 +1,8 @@
+[package]
+name = "fbihtax"
+version = "0.1.0"
+authors = ["Ensar Sarajčić <es.ensar@gmail.com>"]
+edition = "2021"
+
+
+[dependencies]
