@@ -6,3 +6,4 @@ edition = "2021"
 
 
 [dependencies]
+pdf_forms = "0.3.4"
