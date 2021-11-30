@@ -18,13 +18,6 @@ fn main() {
         ("company_name", 10),
         ("company_address", 11),
         ("company_country", 12),
-        // Repeating 13-18, 19-24, 25-30, 31-36, 37-42
-        ("income_value", 13),
-        ("health_insurance", 14),
-        ("tax_base", 15),
-        ("tax_amount", 16),
-        ("tax_paid_abroad", 17),
-        ("tax_to_pay", 18),
         ("health_insurance_total", 43),
         ("tax_base_total", 44),
         ("tax_amount_total", 45),
@@ -33,6 +26,17 @@ fn main() {
         ("date", 48),
     ]);
 
+    let repeating_fields = HashMap::from([
+        ("income_value", 0),
+        ("health_insurance", 1),
+        ("tax_base", 2),
+        ("tax_amount", 3),
+        ("tax_paid_abroad", 4),
+        ("tax_to_pay", 5),
+    ]);
+    let repeating_fields_start = 13;
+    let repeated_lines = 5;
+
     let mut form = Form::load("tax.pdf").unwrap();
 
     for (key, index) in form_fields {
@@ -40,6 +44,17 @@ fn main() {
             Ok(res) => println!("Field {} set! Result: {:?}", index, res),
             Err(why) => panic!("{:?}", why),
         }
+    }
+    for i in 0..repeated_lines {
+        repeating_fields.iter().for_each(|(key, index)| {
+            match form.set_text(
+                repeating_fields_start + index + i * repeating_fields.len(),
+                format!("{} line {}", key, i),
+            ) {
+                Ok(res) => println!("Field {} set! Result: {:?}", index, res),
+                Err(why) => panic!("{:?}", why),
+            }
+        })
     }
     let result = form.save("taxresult.pdf");
     match result {
