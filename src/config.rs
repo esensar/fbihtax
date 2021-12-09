@@ -46,7 +46,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             output_location: default_output_location(),
-            ..Default::default()
+            pdf: Default::default(),
         }
     }
 }
