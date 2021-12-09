@@ -10,19 +10,34 @@ use std::{fs::File, path::Path};
 
 use amsform::FormField;
 
+use crate::config::{Config, UserConfig};
+
 #[derive(Parser, Debug)]
 #[clap(about, version, author)]
 struct CliArgs {
-    #[clap(short, long, default_value = ".fbihtax.json")]
+    #[clap(
+        short,
+        long,
+        help = "Path to config file",
+        default_value = ".fbihtax.json"
+    )]
     config: String,
-    #[clap(short, long)]
+    #[clap(
+        short,
+        long,
+        help = "Decimal income value in BAM (will be rounded to 2 decimals)"
+    )]
     income: Decimal,
+    #[clap(long, help = "Path to config file with user specific settings")]
+    user_config: Option<String>,
+    #[clap(long, help = "Path to config file with client specific settings")]
+    client_config: Option<String>,
 }
 
 fn main() {
     let args = CliArgs::parse();
 
-    let config = config::parse_config(args.config.as_str());
+    let config: Config = config::parse_config_with_default(args.config.as_str());
 
     if !Path::new(config.pdf.cache_location.as_str()).exists() {
         println!(
@@ -44,7 +59,13 @@ fn main() {
 
     let mut form = amsform::load_ams_form(config.pdf.cache_location);
 
-    form.fill_main_field(FormField::UserName, "Ensar".to_string());
+    let user_config = match args.user_config {
+        Some(path) => config::parse_config::<UserConfig>(path.as_str()),
+        None => config.user,
+    }.expect("Missing user configuration. Either fill it in default config file or pass --user-config parameter.");
+    form.fill_main_field(FormField::UserName, user_config.name);
+    form.fill_main_field(FormField::UserAddress, user_config.address);
+    form.fill_main_field(FormField::UserJmbg, user_config.jmbg);
     let income_dec: Decimal = args.income.round_dp(2);
     form.add_income(income_dec, dec!(0));
 
