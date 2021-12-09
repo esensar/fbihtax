@@ -1,7 +1,7 @@
 extern crate pdf_forms;
 use std::ops::Add;
 
-use pdf_forms::{Form, ValueError};
+use pdf_forms::Form;
 
 pub enum FormField {
     PageNumber = 0,
@@ -200,7 +200,7 @@ impl AmsForm {
     }
 }
 
-pub fn load_ams_form(input_file: &str) -> AmsForm {
+pub fn load_ams_form(input_file: String) -> AmsForm {
     AmsForm {
         pdf_form: Form::load(input_file).unwrap(),
         income_lines: Vec::new(),
