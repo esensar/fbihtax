@@ -10,7 +10,7 @@ use std::{fs::File, path::Path};
 
 use amsform::FormField;
 
-use crate::config::{Config, UserConfig};
+use crate::config::{ClientConfig, Config, UserConfig};
 
 #[derive(Parser, Debug)]
 #[clap(about, version, author)]
@@ -28,6 +28,13 @@ struct CliArgs {
         help = "Decimal income value in BAM (will be rounded to 2 decimals)"
     )]
     income: Decimal,
+    #[clap(
+        short,
+        long,
+        help = "Tax deduction percentage (20 default, 30 for income from authored work)",
+        default_value_t = dec!(20)
+    )]
+    deduction_percentage: Decimal,
     #[clap(long, help = "Path to config file with user specific settings")]
     user_config: Option<String>,
     #[clap(long, help = "Path to config file with client specific settings")]
@@ -66,8 +73,18 @@ fn main() {
     form.fill_main_field(FormField::UserName, user_config.name);
     form.fill_main_field(FormField::UserAddress, user_config.address);
     form.fill_main_field(FormField::UserJmbg, user_config.jmbg);
+
+    let client_config = match args.client_config {
+        Some(path) => config::parse_config::<ClientConfig>(path.as_str()),
+        None => config.client,
+    }.expect("Missing client configuration. Either fill it in default config file or pass --client-config parameter.");
+    form.fill_main_field(FormField::CompanyName, client_config.name);
+    form.fill_main_field(FormField::CompanyAddress, client_config.address);
+    form.fill_main_field(FormField::CompanyCountry, client_config.country);
+
     let income_dec: Decimal = args.income.round_dp(2);
-    form.add_income(income_dec, dec!(0));
+    let deduction_factor: Decimal = dec!(1) - (args.deduction_percentage.round_dp(2) * dec!(0.01));
+    form.add_income(income_dec * deduction_factor, dec!(0));
 
     let output_path = Path::new(config.output_location.as_str());
     let output_file_path = output_path.join("amsform.pdf");
