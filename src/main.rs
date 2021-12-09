@@ -1,7 +1,10 @@
 extern crate clap;
+extern crate rust_decimal;
 mod amsform;
 mod config;
 use clap::Parser;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 use std::path::Path;
 
 use amsform::FormField;
@@ -12,7 +15,7 @@ struct CliArgs {
     #[clap(short, long, default_value = ".fbihtax.json")]
     config: String,
     #[clap(short, long)]
-    income: f64,
+    income: Decimal,
 }
 
 fn main() {
@@ -22,8 +25,8 @@ fn main() {
     let mut form = amsform::load_ams_form(config.pdf.cache_location);
 
     form.fill_main_field(FormField::UserName, "Ensar".to_string());
-    let income_rounded = (args.income * 100.0).round() as i64;
-    form.add_income(income_rounded, 0);
+    let income_dec: Decimal = args.income.round_dp(2);
+    form.add_income(income_dec, dec!(0));
 
     form.save(
         Path::new(config.output_location.as_str())

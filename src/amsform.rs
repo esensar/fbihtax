@@ -1,7 +1,10 @@
 extern crate pdf_forms;
-use std::ops::Add;
+extern crate rust_decimal;
+use std::{ops::Add, str::FromStr};
 
 use pdf_forms::Form;
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
 pub enum FormField {
     PageNumber = 0,
@@ -39,12 +42,12 @@ static REPEATED_LINES: u32 = 5;
 static REPEATED_FIELDS_COUNT: u32 = 6;
 
 struct IncomeLine {
-    value: i64,
-    health_insurance: i64,
-    tax_base: i64,
-    tax_amount: i64,
-    tax_paid_abroad: i64,
-    tax_to_pay: i64,
+    value: Decimal,
+    health_insurance: Decimal,
+    tax_base: Decimal,
+    tax_amount: Decimal,
+    tax_paid_abroad: Decimal,
+    tax_to_pay: Decimal,
 }
 
 impl Add for IncomeLine {
@@ -85,8 +88,8 @@ pub struct AmsForm {
     income_lines: Vec<IncomeLine>,
 }
 
-fn format_money_value(value: i64) -> String {
-    format!("{},{:02}", value / 100, value % 100)
+fn format_money_value(value: Decimal) -> String {
+    value.round_dp(2).to_string()
 }
 
 fn fill_field(pdf_form: &mut Form, field_index: usize, value: String) {
@@ -111,10 +114,10 @@ impl AmsForm {
         fill_field(&mut self.pdf_form, field as usize, value);
     }
 
-    pub fn add_income(&mut self, base_value: i64, tax_paid_abroad: i64) {
-        let health_insurance = (base_value * 4) / 100;
+    pub fn add_income(&mut self, base_value: Decimal, tax_paid_abroad: Decimal) {
+        let health_insurance = base_value * dec!(0.04);
         let tax_base = base_value - health_insurance;
-        let tax_amount = tax_base / 10;
+        let tax_amount: Decimal = tax_base * dec!(0.10);
         let tax_to_pay = tax_amount - tax_paid_abroad;
         self.income_lines.push(IncomeLine {
             value: base_value,
