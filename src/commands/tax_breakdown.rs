@@ -25,6 +25,13 @@ pub struct TaxBreakdownArgs {
             default_value_t = dec!(20)
             )]
     deduction_percentage: Decimal,
+    #[clap(
+        short,
+        long,
+        help = "Path to save output JSON to",
+        default_value = "taxbreakdown.json"
+    )]
+    output: String,
 }
 
 pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
@@ -39,7 +46,7 @@ pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
     let health_insurance_canton = health_insurance - health_insurance_federation; // or *0.8980, but this is more accurate
 
     let output_path = Path::new(config.output_location.as_str());
-    let output_file_path = output_path.join("taxbreakdown.json");
+    let output_file_path = output_path.join(&args.output);
     let output_file_path_str = output_file_path
         .to_str()
         .expect("Output location seems to be invalid!");

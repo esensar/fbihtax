@@ -20,6 +20,8 @@ pub struct AmsArgs {
         help = "Decimal income value in BAM (will be rounded to 2 decimals)"
     )]
     income: Decimal,
+    #[clap(long, help = "Invoice date (YYYY-MM-DD)")]
+    invoice_date: Option<String>,
     #[clap(
         short,
         long,
@@ -31,6 +33,13 @@ pub struct AmsArgs {
     user_config: Option<String>,
     #[clap(long, help = "Path to config file with client specific settings")]
     client_config: Option<String>,
+    #[clap(
+        short,
+        long,
+        help = "Path to save output PDF to",
+        default_value = "amsform.pdf"
+    )]
+    output: String,
 }
 
 pub fn handle_command(config: Config, args: &AmsArgs) {
@@ -48,6 +57,19 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
     form.fill_main_field(FormField::UserAddress, user_config.address);
     form.fill_main_field(FormField::UserJmbg, user_config.jmbg);
 
+    if let Some(invoice_date) = &args.invoice_date {
+        if let Some((year, rest)) = invoice_date.split_once("-") {
+            if let Some((month, day)) = rest.split_once("-") {
+                let year_last_2 = &year[2..year.len()];
+                form.fill_main_field(FormField::TaxPeriodMonth, month.to_string());
+                form.fill_main_field(FormField::TaxPeriodYearLast2Digits, year_last_2.to_string());
+                form.fill_main_field(FormField::PaymentDateDay, day.to_string());
+                form.fill_main_field(FormField::PaymentDateMonth, month.to_string());
+                form.fill_main_field(FormField::PaymentDateYear, year_last_2.to_string());
+            }
+        }
+    }
+
     let client_config = match &args.client_config {
         Some(path) => config::parse_config::<ClientConfig>(path.as_str()),
         None => config.client,
@@ -59,7 +81,7 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
     form.add_income(income_after, dec!(0));
 
     let output_path = Path::new(config.output_location.as_str());
-    let output_file_path = output_path.join("amsform.pdf");
+    let output_file_path = output_path.join(&args.output);
     let output_file_path_str = output_file_path
         .to_str()
         .expect("Output location seems to be invalid!");
