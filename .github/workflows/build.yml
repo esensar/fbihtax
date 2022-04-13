@@ -14,15 +14,16 @@ jobs:
 
     strategy:
       matrix:
-        - os: ubuntu-latest
-          extension: ''
-          exe-suffix: linux
-        - os: windows-latest
-          extension: .exe
-          exe-suffix: win
-        - os: macos-latest
-          extension: ''
-          exe-suffix: macos
+        include:
+          - os: ubuntu-latest
+            extension: ''
+            exe-suffix: linux
+          - os: windows-latest
+            extension: .exe
+            exe-suffix: win
+          - os: macos-latest
+            extension: ''
+            exe-suffix: macos
     runs-on: ${{ matrix.os }}
 
     steps:
