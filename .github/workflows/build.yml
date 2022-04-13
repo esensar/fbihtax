@@ -14,7 +14,15 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        - os: ubuntu-latest
+          extension: ''
+          exe-suffix: linux
+        - os: windows-latest
+          extension: .exe
+          exe-suffix: win
+        - os: macos-latest
+          extension: ''
+          exe-suffix: macos
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -23,5 +31,5 @@ jobs:
       run: cargo build --release --verbose
     - uses: actions/upload-artifact@v2
       with:
-        name: fbihtax-${{ matrix.os }}
-        path: target/release/fbihtax
+        name: fbihtax-${{ matrix.exe-suffix }}${{ matrix.extension }}
+        path: target/release/fbihtax${{ matrix.extension }}
