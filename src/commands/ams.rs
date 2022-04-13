@@ -14,6 +14,7 @@ use crate::{
     forms::amsform::{self, FormField},
 };
 
+#[derive(PartialEq, Eq)]
 pub enum OutputFormat {
     Pdf,
     Fdf,
@@ -199,4 +200,41 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
 
     printer.write_to_file(&mut form, output_file_path_str);
     println!("Saved AMS form to: {}", output_file_path_str);
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn output_format_name_normal_test() {
+        assert_eq!(OutputFormat::Pdf, OutputFormat::from_str("pdf").unwrap());
+        assert_eq!(OutputFormat::Json, OutputFormat::from_str("json").unwrap());
+        assert_eq!(OutputFormat::Fdf, OutputFormat::from_str("fdf").unwrap());
+    }
+
+    #[test]
+    fn output_format_name_unsupported_test() {
+        assert!(OutputFormat::from_str("yml").is_err());
+        assert!(OutputFormat::from_str("xml").is_err());
+    }
+
+    #[test]
+    fn output_format_name_wrong_case_test() {
+        assert!(OutputFormat::from_str("PDF").is_err());
+        assert!(OutputFormat::from_str("JSON").is_err());
+        assert!(OutputFormat::from_str("FDF").is_err());
+    }
+
+    #[test]
+    fn output_format_display_test() {
+        assert_eq!("format is pdf", format!("format is {}", OutputFormat::Pdf));
+        assert_eq!(
+            "format is json",
+            format!("format is {}", OutputFormat::Json)
+        );
+        assert_eq!("format is fdf", format!("format is {}", OutputFormat::Fdf));
+    }
 }

@@ -215,26 +215,6 @@ impl AmsForm {
             .filter(|(k, _)| !k.is_empty())
             .collect()
     }
-
-    pub fn save_fdf(&mut self, output_file: &str) {
-        self.fill_income_lines();
-        let mut fdf_data = FdfData::new();
-        for (key, value) in &mut self.fields {
-            match self.pdf_form.get_name(key.clone()) {
-                Some(name) => fdf_data.add_entry(name, value.clone()),
-                None => println!("failed"),
-            }
-        }
-        fdf_generator::write_fdf(fdf_data, output_file.to_string());
-    }
-
-    pub fn save(&mut self, output_file: &str) {
-        self.fill_income_lines();
-        match self.pdf_form.save(output_file) {
-            Ok(_) => (),
-            Err(why) => panic!("{:?}", why),
-        }
-    }
 }
 
 pub fn load_ams_form(input_file: String) -> AmsForm {
@@ -242,5 +222,26 @@ pub fn load_ams_form(input_file: String) -> AmsForm {
         pdf_form: Form::load(input_file).unwrap(),
         fields: HashMap::new(),
         income_lines: Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_money_value_test() {
+        let pairs = [
+            (dec!(3.3333), "3.33"),
+            (dec!(6.6663), "6.67"),
+            (dec!(1.12345), "1.12"),
+            (dec!(0), "0.00"),
+            (dec!(10.00), "10.00"),
+            (dec!(12345.6789), "12345.68"),
+        ];
+
+        for (value, expected) in pairs {
+            assert_eq!(expected, format_money_value(value))
+        }
     }
 }
