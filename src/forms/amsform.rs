@@ -1,11 +1,14 @@
 extern crate pdf_forms;
 extern crate rust_decimal;
-use std::{ops::Add, str::FromStr};
+use std::{collections::HashMap, ops::Add};
 
 use pdf_forms::Form;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
+use crate::fdf::fdf_generator::{self, FdfData};
+
+#[derive(Clone, Copy)]
 pub enum FormField {
     PageNumber = 0,
     PageCount = 1,
@@ -28,6 +31,7 @@ pub enum FormField {
     Date = 48,
 }
 
+#[derive(Clone, Copy)]
 enum RepeatingFormField {
     IncomeValue = 0,
     HealthInsurance = 1,
@@ -85,6 +89,7 @@ impl Copy for IncomeLine {}
 
 pub struct AmsForm {
     pdf_form: Form,
+    fields: HashMap<usize, String>,
     income_lines: Vec<IncomeLine>,
 }
 
@@ -111,7 +116,14 @@ fn fill_repeating_field(pdf_form: &mut Form, line: u32, field: RepeatingFormFiel
 
 impl AmsForm {
     pub fn fill_main_field(&mut self, field: FormField, value: String) {
+        self.fields.insert(field as usize, value.clone());
         fill_field(&mut self.pdf_form, field as usize, value);
+    }
+
+    fn fill_repeating_field(&mut self, line: u32, field: RepeatingFormField, value: String) {
+        let field_index = field as u32 + REPEATING_FIELDS_START + line * REPEATED_FIELDS_COUNT;
+        self.fields.insert(field_index as usize, value.clone());
+        fill_repeating_field(&mut self.pdf_form, line, field, value);
     }
 
     pub fn add_income(&mut self, base_value: Decimal, tax_paid_abroad: Decimal) {
@@ -129,7 +141,7 @@ impl AmsForm {
         });
     }
 
-    pub fn save(&mut self, output_file: &str) {
+    fn fill_income_lines(&mut self) {
         // TODO: Handle multiple pages
         self.fill_main_field(FormField::PageNumber, "1".to_string());
         self.fill_main_field(FormField::PageCount, "1".to_string());
@@ -140,39 +152,33 @@ impl AmsForm {
             .reduce(|acc, x| acc + x)
             .unwrap();
         let mut counter = 0;
-        for income_line in &self.income_lines {
-            fill_repeating_field(
-                &mut self.pdf_form,
+        for income_line in self.income_lines.clone() {
+            self.fill_repeating_field(
                 counter,
                 RepeatingFormField::IncomeValue,
                 format_money_value(income_line.value),
             );
-            fill_repeating_field(
-                &mut self.pdf_form,
+            self.fill_repeating_field(
                 counter,
                 RepeatingFormField::HealthInsurance,
                 format_money_value(income_line.health_insurance),
             );
-            fill_repeating_field(
-                &mut self.pdf_form,
+            self.fill_repeating_field(
                 counter,
                 RepeatingFormField::TaxBase,
                 format_money_value(income_line.tax_base),
             );
-            fill_repeating_field(
-                &mut self.pdf_form,
+            self.fill_repeating_field(
                 counter,
                 RepeatingFormField::TaxAmount,
                 format_money_value(income_line.tax_amount),
             );
-            fill_repeating_field(
-                &mut self.pdf_form,
+            self.fill_repeating_field(
                 counter,
                 RepeatingFormField::TaxPaidAbroad,
                 format_money_value(income_line.tax_paid_abroad),
             );
-            fill_repeating_field(
-                &mut self.pdf_form,
+            self.fill_repeating_field(
                 counter,
                 RepeatingFormField::TaxToPay,
                 format_money_value(income_line.tax_to_pay),
@@ -196,6 +202,34 @@ impl AmsForm {
             FormField::TaxToPayTotal,
             format_money_value(total.tax_to_pay),
         );
+    }
+
+    pub fn to_dict(&mut self) -> HashMap<String, String> {
+        self.fill_income_lines();
+        self.fields
+            .iter()
+            .map(|(k, v)| match self.pdf_form.get_name(k.clone()) {
+                Some(name) => (name, v.clone()),
+                None => ("".to_string(), "".to_string()),
+            })
+            .filter(|(k, _)| !k.is_empty())
+            .collect()
+    }
+
+    pub fn save_fdf(&mut self, output_file: &str) {
+        self.fill_income_lines();
+        let mut fdf_data = FdfData::new();
+        for (key, value) in &mut self.fields {
+            match self.pdf_form.get_name(key.clone()) {
+                Some(name) => fdf_data.add_entry(name, value.clone()),
+                None => println!("failed"),
+            }
+        }
+        fdf_generator::write_fdf(fdf_data, output_file.to_string());
+    }
+
+    pub fn save(&mut self, output_file: &str) {
+        self.fill_income_lines();
         match self.pdf_form.save(output_file) {
             Ok(_) => (),
             Err(why) => panic!("{:?}", why),
@@ -206,6 +240,7 @@ impl AmsForm {
 pub fn load_ams_form(input_file: String) -> AmsForm {
     AmsForm {
         pdf_form: Form::load(input_file).unwrap(),
+        fields: HashMap::new(),
         income_lines: Vec::new(),
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "fbihtax"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Ensar Sarajčić <es.ensar@gmail.com>"]
 edition = "2021"
 description = "Simple CLI tool to help manage tax payments in FBiH (Bosnia and Herzegovina Federation)"

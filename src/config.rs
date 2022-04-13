@@ -25,9 +25,11 @@ pub struct PdfConfig {
     pub cache_location: String,
     #[serde(default = "default_download_url")]
     pub download_url: String,
+    #[serde(default = "default_pdftk_path")]
+    pub pdftk_path: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UserConfig {
     pub name: String,
@@ -35,7 +37,7 @@ pub struct UserConfig {
     pub jmbg: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientConfig {
     pub name: String,
@@ -51,11 +53,16 @@ fn default_download_url() -> String {
     "http://www.pufbih.ba/v1/public/upload/obrasci/b839c-obrazac-ams_bos_web.pdf".to_string()
 }
 
+fn default_pdftk_path() -> String {
+    "pdftk".to_string()
+}
+
 impl Default for PdfConfig {
     fn default() -> Self {
         Self {
             cache_location: default_cache_location(),
             download_url: default_download_url(),
+            pdftk_path: default_pdftk_path(),
         }
     }
 }

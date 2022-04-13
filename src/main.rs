@@ -1,9 +1,10 @@
 extern crate clap;
 extern crate reqwest;
 extern crate rust_decimal;
-mod amsform;
 mod commands;
 mod config;
+mod fdf;
+mod forms;
 use clap::{AppSettings, Parser, Subcommand};
 use commands::tax_breakdown::TaxBreakdownArgs;
 use commands::{ams::AmsArgs, tax_breakdown};

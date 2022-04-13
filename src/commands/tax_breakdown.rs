@@ -61,6 +61,6 @@ pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
         },
         "total": (health_insurance + tax_amount).round_dp(2)
     });
-    serde_json::to_writer_pretty(breakdown_writer, &json).expect("Failed saving downloaded PDF");
+    serde_json::to_writer_pretty(breakdown_writer, &json).expect("Failed saving tax breakdown");
     println!("Saved tax breakdown to: {}", output_file_path_str);
 }
