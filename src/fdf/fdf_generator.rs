@@ -8,6 +8,12 @@ static FOOTER: &str = concat!(
     "<</Root 1 0 R>>\n",
     "%%EOF"
 );
+static XFDF_HEADER: &str = concat!(
+    "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n",
+    "<xfdf xmlns=\"http://ns.adobe.com/xfdf/\" xml:space=\"preserve\">\n",
+    "  <fields>\n"
+);
+static XFDF_FOOTER: &str = concat!("  </fields>\n", "</xfdf>");
 
 pub struct FdfData {
     entries: Vec<FdfDataEntry>,
@@ -35,6 +41,27 @@ impl FdfData {
         let entry = FdfDataEntry { title, value };
         self.entries.push(entry);
     }
+}
+
+pub fn write_xfdf(data: FdfData, output_file: String) {
+    let mut fdf_file = File::create(output_file).expect("Failed creating xfdf file!");
+    fdf_file
+        .write_all(XFDF_HEADER.as_bytes())
+        .expect("Writing xfdf file failed!");
+    for entry in data.entries {
+        fdf_file
+            .write_all(
+                format!(
+                    "    <field name=\"{}\"><value>{}</value></field>\n",
+                    entry.title, entry.value
+                )
+                .as_bytes(),
+            )
+            .expect("Writing xfdf file failed!");
+    }
+    fdf_file
+        .write_all(XFDF_FOOTER.as_bytes())
+        .expect("Writing xfdf file failed!");
 }
 
 pub fn write_fdf(data: FdfData, output_file: String) {
