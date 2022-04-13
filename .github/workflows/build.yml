@@ -12,7 +12,10 @@ env:
 jobs:
   build:
 
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v2
@@ -20,5 +23,5 @@ jobs:
       run: cargo build --release --verbose
     - uses: actions/upload-artifact@v2
       with:
-        name: fbihtax
+        name: fbihtax-${{ matrix.os }}
         path: target/release/fbihtax
