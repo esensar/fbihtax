@@ -210,7 +210,15 @@ impl AmsForm {
             .iter()
             .map(|(k, v)| match self.pdf_form.get_name(k.clone()) {
                 Some(name) => (name, v.clone()),
-                None => ("".to_string(), "".to_string()),
+                None => {
+                    // pdf_forms has a bug when loading names with non ascii characters
+                    // this patches one such occurence in the document
+                    if k.clone() == FormField::CompanyCountry as usize {
+                        ("8 Dr&#382;ava".to_string(), v.clone())
+                    } else {
+                        ("".to_string(), "".to_string())
+                    }
+                }
             })
             .filter(|(k, _)| !k.is_empty())
             .collect()
