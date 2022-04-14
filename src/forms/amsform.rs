@@ -6,8 +6,6 @@ use pdf_forms::Form;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
-use crate::fdf::fdf_generator::{self, FdfData};
-
 #[derive(Clone, Copy)]
 pub enum FormField {
     PageNumber = 0,
