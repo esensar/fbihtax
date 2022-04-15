@@ -131,7 +131,7 @@ pub struct AmsArgs {
         default_value_t = dec!(20)
     )]
     deduction_percentage: Decimal,
-    #[clap(long, help = "Output format (PDF, FDF, JSON)", default_value_t = OutputFormat::Json)]
+    #[clap(long, help = "Output format (PDF, FDF, XFDF, JSON)", default_value_t = OutputFormat::Json)]
     output_format: OutputFormat,
     #[clap(long, help = "Path to config file with user specific settings")]
     user_config: Option<String>,
