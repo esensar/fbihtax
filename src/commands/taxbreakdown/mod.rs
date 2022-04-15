@@ -1,18 +1,22 @@
 extern crate clap;
 extern crate rust_decimal;
 
-mod printer;
+mod data;
 
 use std::path::Path;
 
 use clap::Parser;
-use printer::{JsonPrinter, OutputFormat, StdoutPrinter, TaxBreakdownPrinter};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
+use serde_json::json;
 
-use crate::config::Config;
+use crate::{
+    config::Config,
+    format::printer::{JsonPrinter, Printer, StdoutPrinter},
+    format::OutputFormat,
+};
 
-use self::printer::TaxBreakdownData;
+use self::data::TaxBreakdownData;
 
 #[derive(Parser, Debug)]
 pub struct TaxBreakdownArgs {
@@ -41,12 +45,39 @@ pub struct TaxBreakdownArgs {
 }
 
 pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
-    let json_printer = JsonPrinter {};
-    let stdout_printer = StdoutPrinter {};
+    let json_printer = JsonPrinter {
+        json_formatter: |data| {
+            json!({
+            "income_tax": data.get("income_tax"),
+            "health_insurance": {
+                "federation": data.get("health_insurance_federation"),
+                "canton": data.get("health_insurance_canton"),
+                "total": data.get("health_insurance_total")
+            },
+            "total": data.get("total")
+            })
+        },
+    };
+    let stdout_printer = StdoutPrinter {
+        output_template: concat!(
+            "Income Tax breakdown:\n",
+            "\n",
+            "Income tax: {income_tax}\n",
+            "\n",
+            "Health insurance:\n",
+            "  Federation: {health_federation}\n",
+            "  Canton: {health_canton}\n",
+            "  Total: {health_total}\n",
+            "\n",
+            "Total: {total}\n"
+        )
+        .to_string(),
+    };
 
-    let printer: &dyn TaxBreakdownPrinter = match args.output_format {
+    let printer: &dyn Printer = match args.output_format {
         OutputFormat::Json => &json_printer,
         OutputFormat::Stdout => &stdout_printer,
+        _ => panic!("Unsupported format!"),
     };
 
     let income_dec: Decimal = args.income.round_dp(2);
@@ -69,5 +100,5 @@ pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
         health_insurance_federation,
         health_insurance_canton,
     };
-    printer.write_to_file(&data, output_file_path_str);
+    printer.write_to_file(data.to_dict(), output_file_path_str);
 }

@@ -1,14 +1,4 @@
-extern crate clap;
-extern crate rust_decimal;
-
-use std::env::temp_dir;
-use std::fs::File;
-
-use crate::{
-    config::Config,
-    fdf::fdf_generator::{self, FdfData},
-    forms::amsform,
-};
+pub mod printer;
 
 #[derive(PartialEq, Eq)]
 pub enum OutputFormat {
@@ -16,6 +6,7 @@ pub enum OutputFormat {
     Fdf,
     Xfdf,
     Json,
+    Stdout,
 }
 
 impl std::fmt::Display for OutputFormat {
@@ -25,6 +16,7 @@ impl std::fmt::Display for OutputFormat {
             OutputFormat::Fdf => "fdf",
             OutputFormat::Xfdf => "xfdf",
             OutputFormat::Json => "json",
+            OutputFormat::Stdout => "stdout",
         })
     }
 }
@@ -36,6 +28,7 @@ impl std::fmt::Debug for OutputFormat {
             OutputFormat::Fdf => "fdf",
             OutputFormat::Xfdf => "xfdf",
             OutputFormat::Json => "json",
+            OutputFormat::Stdout => "stdout",
         })
     }
 }
@@ -49,64 +42,9 @@ impl std::str::FromStr for OutputFormat {
             "fdf" => Ok(OutputFormat::Fdf),
             "xfdf" => Ok(OutputFormat::Xfdf),
             "json" => Ok(OutputFormat::Json),
+            "stdout" => Ok(OutputFormat::Stdout),
             _ => Err("Unknown format passed!".to_string()),
         }
-    }
-}
-
-pub struct PdfPrinter<'a> {
-    pub config: &'a Config,
-    pub xfdf_printer: &'a XfdfPrinter,
-}
-pub struct FdfPrinter {}
-pub struct XfdfPrinter {}
-pub struct JsonPrinter {}
-
-pub trait AmsPrinter {
-    fn write_to_file(&self, form: &mut amsform::AmsForm, file: &str);
-}
-
-impl<'a> AmsPrinter for PdfPrinter<'a> {
-    fn write_to_file(&self, form: &mut amsform::AmsForm, file: &str) {
-        let mut tmp_fdf_file = temp_dir();
-        tmp_fdf_file.push("fbihtax.xfdf");
-        let tmp_fdf_file_str = tmp_fdf_file.to_str().expect("Can't create temporary file");
-        self.xfdf_printer.write_to_file(form, tmp_fdf_file_str);
-        let _process = std::process::Command::new(&self.config.pdf.pdftk_path)
-            .args(&[
-                self.config.pdf.cache_location.clone(),
-                "fill_form".to_string(),
-                tmp_fdf_file_str.to_string(),
-                "output".to_string(),
-                file.to_string()
-            ])
-            .output()
-            .ok()
-            .expect("Failed to execute pdftk. Ensure it is installed and path is properly configured in .fbihtax.json");
-    }
-}
-
-impl AmsPrinter for FdfPrinter {
-    fn write_to_file(&self, form: &mut amsform::AmsForm, file: &str) {
-        let dict = form.to_dict();
-        let fdf_data = FdfData::from_dict(dict);
-        fdf_generator::write_fdf(fdf_data, file.to_string());
-    }
-}
-
-impl AmsPrinter for XfdfPrinter {
-    fn write_to_file(&self, form: &mut amsform::AmsForm, file: &str) {
-        let dict = form.to_dict();
-        let fdf_data = FdfData::from_dict(dict);
-        fdf_generator::write_xfdf(fdf_data, file.to_string());
-    }
-}
-
-impl AmsPrinter for JsonPrinter {
-    fn write_to_file(&self, form: &mut amsform::AmsForm, file: &str) {
-        let breakdown_writer = File::create(file).expect("Failed creating output JSON");
-        let dict = form.to_dict();
-        serde_json::to_writer_pretty(breakdown_writer, &dict).expect("Failed saving output JSON");
     }
 }
 
@@ -122,6 +60,10 @@ mod tests {
         assert_eq!(OutputFormat::Json, OutputFormat::from_str("json").unwrap());
         assert_eq!(OutputFormat::Fdf, OutputFormat::from_str("fdf").unwrap());
         assert_eq!(OutputFormat::Xfdf, OutputFormat::from_str("xfdf").unwrap());
+        assert_eq!(
+            OutputFormat::Stdout,
+            OutputFormat::from_str("stdout").unwrap()
+        );
     }
 
     #[test]
@@ -136,6 +78,7 @@ mod tests {
         assert!(OutputFormat::from_str("JSON").is_err());
         assert!(OutputFormat::from_str("FDF").is_err());
         assert!(OutputFormat::from_str("XFDF").is_err());
+        assert!(OutputFormat::from_str("STDOUT").is_err());
     }
 
     #[test]

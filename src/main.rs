@@ -4,6 +4,7 @@ extern crate rust_decimal;
 mod commands;
 mod config;
 mod fdf;
+mod format;
 mod forms;
 use clap::{AppSettings, Parser, Subcommand};
 use commands::taxbreakdown::TaxBreakdownArgs;

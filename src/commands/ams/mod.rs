@@ -1,16 +1,15 @@
 extern crate clap;
 extern crate rust_decimal;
 
-mod printer;
-
 use std::path::Path;
 
 use crate::{
     config::{self, ClientConfig, Config, UserConfig},
+    format::printer::{FdfPrinter, JsonPrinter, PdfPrinter, Printer, XfdfPrinter},
+    format::OutputFormat,
     forms::amsform::{self, FormField},
 };
 use clap::Parser;
-use printer::{AmsPrinter, FdfPrinter, JsonPrinter, OutputFormat, PdfPrinter, XfdfPrinter};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
@@ -51,17 +50,19 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
 
     let fdf_printer = FdfPrinter {};
     let xfdf_printer = XfdfPrinter {};
-    let json_printer = JsonPrinter {};
+    let json_printer = JsonPrinter::default();
     let pdf_printer = PdfPrinter {
         config: &config,
+        source_pdf: config.pdf.cache_location.clone(),
         xfdf_printer: &xfdf_printer,
     };
 
-    let printer: &dyn AmsPrinter = match args.output_format {
+    let printer: &dyn Printer = match args.output_format {
         OutputFormat::Pdf => &pdf_printer,
         OutputFormat::Fdf => &fdf_printer,
         OutputFormat::Xfdf => &xfdf_printer,
         OutputFormat::Json => &json_printer,
+        _ => panic!("Unsupported format!"),
     };
 
     let income_dec: Decimal = args.income.round_dp(2);
@@ -113,7 +114,7 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
         .to_str()
         .expect("Output location seems to be invalid!");
 
-    printer.write_to_file(&mut form, output_file_path_str);
+    printer.write_to_file(form.to_dict(), output_file_path_str);
     println!("Saved AMS form to: {}", output_file_path_str);
 }
 
