@@ -1,5 +1,18 @@
 {
 	"pdf": {
-		"cacheLocation": "taxcache.pdf"
+		"cacheLocation": "tax.pdf",
+		"downloadUrl": "http://www.pufbih.ba/v1/public/upload/obrasci/b839c-obrazac-ams_bos_web.pdf",
+		"pdftk_path": "pdftk"
+	},
+	"output_location": "default_output_location - by default current directory",
+	"user": {
+		"name": "User Name",
+		"address": "User Address",
+		"jmbg": "12345678901234"
+	},
+	"client": {
+		"name": "Client name",
+		"address": "Client address",
+		"country": "Client country"
 	}
 }
