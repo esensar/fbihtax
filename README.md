@@ -6,6 +6,21 @@ Simple CLI tool to help manage tax payments in FBiH (Bosnia and Herzegovina Fede
 
 Currently PDF output requires `pdftk` to be installed, otherwise `fdf` or `json` outputs can be used.
 
+## Installation
+
+Check out releases for build binaries. Script is also available for installation, but it requires root access.
+```
+$ sudo sh -c "$(curl -fsSL https://raw.githubusercontent.com/esensar/fbihtax/main/scripts/install.sh)"
+```
+or
+```
+$ sudo sh -c "$(wget -qO- https://raw.githubusercontent.com/esensar/fbihtax/main/scripts/install.sh)"
+```
+or
+```
+$ sudo sh -c "$(fetch -o - https://raw.githubusercontent.com/esensar/fbihtax/main/scripts/install.sh)"
+```
+
 ## Usage
 
 This is preferrably used automatically on some server, but it can also be used manually if needed. For automatic example check out (TODO: add example repo).
