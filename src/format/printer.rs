@@ -12,6 +12,8 @@ use crate::{
     fdf::fdf_generator::{self, FdfData},
 };
 
+use super::utils::fill_template;
+
 pub trait Printer {
     fn write_to_file(&self, data: HashMap<String, String>, file: &str);
 }
@@ -24,7 +26,7 @@ pub struct PdfPrinter<'a> {
 pub struct FdfPrinter {}
 pub struct XfdfPrinter {}
 pub struct JsonPrinter {
-    pub json_formatter: fn(HashMap<String, String>) -> serde_json::Value,
+    pub json_formatter: Box<dyn Fn(HashMap<String, String>) -> serde_json::Value>,
 }
 pub struct StdoutPrinter {
     pub output_template: String,
@@ -37,7 +39,7 @@ fn default_json_formatter(data: HashMap<String, String>) -> serde_json::Value {
 impl Default for JsonPrinter {
     fn default() -> Self {
         return Self {
-            json_formatter: default_json_formatter,
+            json_formatter: Box::new(default_json_formatter),
         };
     }
 }
@@ -78,19 +80,15 @@ impl Printer for XfdfPrinter {
 impl Printer for JsonPrinter {
     fn write_to_file(&self, data: HashMap<String, String>, file: &str) {
         let breakdown_writer = File::create(file).expect("Failed creating output JSON");
-        let formatter = self.json_formatter;
-        let result_json = formatter(data);
-        let json = serde_json::to_writer_pretty(breakdown_writer, &result_json)
+        let result_json = (self.json_formatter)(data);
+        serde_json::to_writer_pretty(breakdown_writer, &result_json)
             .expect("Failed saving output JSON");
     }
 }
 
 impl Printer for StdoutPrinter {
     fn write_to_file(&self, data: HashMap<String, String>, _file: &str) {
-        let mut result = self.output_template.clone();
-        for (key, value) in data {
-            result = result.replace(format!("{{{}}}", key).as_str(), value.as_str());
-        }
+        let result = fill_template(self.output_template.clone(), data);
         io::stdout().write(result.as_bytes()).unwrap();
     }
 }

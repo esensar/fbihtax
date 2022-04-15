@@ -1,4 +1,5 @@
 pub mod printer;
+pub mod utils;
 
 #[derive(PartialEq, Eq)]
 pub enum OutputFormat {

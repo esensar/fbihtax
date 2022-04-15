@@ -3,7 +3,7 @@ extern crate rust_decimal;
 
 mod data;
 
-use std::path::Path;
+use std::{collections::HashMap, fs::File, io::Read, path::Path};
 
 use clap::Parser;
 use rust_decimal::Decimal;
@@ -13,7 +13,7 @@ use serde_json::json;
 use crate::{
     config::Config,
     format::printer::{JsonPrinter, Printer, StdoutPrinter},
-    format::OutputFormat,
+    format::{utils::fill_template, OutputFormat},
 };
 
 use self::data::TaxBreakdownData;
@@ -42,36 +42,72 @@ pub struct TaxBreakdownArgs {
     output: String,
     #[clap(long, help = "Output format (JSON, stdout)", default_value_t = OutputFormat::Json)]
     output_format: OutputFormat,
+    #[clap(long, help = "Output template")]
+    output_template: Option<String>,
+    #[clap(long, help = "Output template file path")]
+    output_template_file: Option<String>,
+}
+
+fn default_json_formatter(data: HashMap<String, String>) -> serde_json::Value {
+    json!({
+        "income_tax": data.get("income_tax"),
+        "health_insurance": {
+            "federation": data.get("health_insurance_federation"),
+            "canton": data.get("health_insurance_canton"),
+            "total": data.get("health_insurance_total")
+        },
+        "total": data.get("total")
+    })
 }
 
 pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
-    let json_printer = JsonPrinter {
-        json_formatter: |data| {
-            json!({
-            "income_tax": data.get("income_tax"),
-            "health_insurance": {
-                "federation": data.get("health_insurance_federation"),
-                "canton": data.get("health_insurance_canton"),
-                "total": data.get("health_insurance_total")
-            },
-            "total": data.get("total")
-            })
-        },
+    let mut json_formatter: Box<dyn Fn(HashMap<String, String>) -> serde_json::Value> =
+        Box::new(default_json_formatter);
+
+    let mut stdout_template = concat!(
+        "Income Tax breakdown:\n",
+        "\n",
+        "Income tax: {income_tax}\n",
+        "\n",
+        "Health insurance:\n",
+        "  Federation: {health_insurance_federation}\n",
+        "  Canton: {health_insurance_canton}\n",
+        "  Total: {health_insurance_total}\n",
+        "\n",
+        "Total: {total}\n"
+    )
+    .to_string();
+
+    match args.output_template.clone() {
+        Some(template) => {
+            stdout_template = template.clone();
+            json_formatter = Box::new(move |data: HashMap<String, String>| -> serde_json::Value {
+                let result = fill_template(template.clone(), data);
+                serde_json::from_str(result.as_str()).unwrap()
+            });
+        }
+        None => {}
     };
+    match args.output_template_file.clone() {
+        Some(template_file_path) => {
+            let mut template_file =
+                File::open(template_file_path.clone()).expect("Can't open the template file");
+            let mut template = String::new();
+            template_file
+                .read_to_string(&mut template)
+                .expect("Failed reading the template file");
+            stdout_template = template.clone();
+            json_formatter = Box::new(move |data: HashMap<String, String>| -> serde_json::Value {
+                let result = fill_template(template.clone(), data);
+                serde_json::from_str(result.as_str()).unwrap()
+            });
+        }
+        None => {}
+    };
+    let json_printer = JsonPrinter { json_formatter };
+
     let stdout_printer = StdoutPrinter {
-        output_template: concat!(
-            "Income Tax breakdown:\n",
-            "\n",
-            "Income tax: {income_tax}\n",
-            "\n",
-            "Health insurance:\n",
-            "  Federation: {health_federation}\n",
-            "  Canton: {health_canton}\n",
-            "  Total: {health_total}\n",
-            "\n",
-            "Total: {total}\n"
-        )
-        .to_string(),
+        output_template: stdout_template,
     };
 
     let printer: &dyn Printer = match args.output_format {
