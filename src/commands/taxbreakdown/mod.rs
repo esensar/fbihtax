@@ -1,14 +1,18 @@
 extern crate clap;
 extern crate rust_decimal;
 
-use std::{fs::File, path::Path};
+mod printer;
+
+use std::path::Path;
 
 use clap::Parser;
+use printer::{JsonPrinter, OutputFormat, StdoutPrinter, TaxBreakdownPrinter};
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
-use serde_json::json;
 
 use crate::config::Config;
+
+use self::printer::TaxBreakdownData;
 
 #[derive(Parser, Debug)]
 pub struct TaxBreakdownArgs {
@@ -32,9 +36,19 @@ pub struct TaxBreakdownArgs {
         default_value = "taxbreakdown.json"
     )]
     output: String,
+    #[clap(long, help = "Output format (JSON, stdout)", default_value_t = OutputFormat::Json)]
+    output_format: OutputFormat,
 }
 
 pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
+    let json_printer = JsonPrinter {};
+    let stdout_printer = StdoutPrinter {};
+
+    let printer: &dyn TaxBreakdownPrinter = match args.output_format {
+        OutputFormat::Json => &json_printer,
+        OutputFormat::Stdout => &stdout_printer,
+    };
+
     let income_dec: Decimal = args.income.round_dp(2);
     let deduction_factor: Decimal = dec!(1) - (args.deduction_percentage.round_dp(2) * dec!(0.01));
     let income_after = income_dec * deduction_factor;
@@ -50,17 +64,10 @@ pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
     let output_file_path_str = output_file_path
         .to_str()
         .expect("Output location seems to be invalid!");
-    let breakdown_writer =
-        File::create(output_file_path_str).expect("Failed creating tax breakdown file");
-    let json = json!({
-        "income_tax": tax_amount.round_dp(2),
-        "health_insurance": {
-            "federation": health_insurance_federation.round_dp(2),
-            "canton": health_insurance_canton.round_dp(2),
-            "total": health_insurance.round_dp(2)
-        },
-        "total": (health_insurance + tax_amount).round_dp(2)
-    });
-    serde_json::to_writer_pretty(breakdown_writer, &json).expect("Failed saving tax breakdown");
-    println!("Saved tax breakdown to: {}", output_file_path_str);
+    let data = TaxBreakdownData {
+        income_tax: tax_amount,
+        health_insurance_federation,
+        health_insurance_canton,
+    };
+    printer.write_to_file(&data, output_file_path_str);
 }

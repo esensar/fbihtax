@@ -1,118 +1,18 @@
 extern crate clap;
 extern crate rust_decimal;
 
-use std::fs::File;
-use std::{env::temp_dir, path::Path};
+mod printer;
 
-use clap::Parser;
-use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
+use std::path::Path;
 
 use crate::{
     config::{self, ClientConfig, Config, UserConfig},
-    fdf::fdf_generator::{self, FdfData},
     forms::amsform::{self, FormField},
 };
-
-#[derive(PartialEq, Eq)]
-pub enum OutputFormat {
-    Pdf,
-    Fdf,
-    Xfdf,
-    Json,
-}
-
-impl std::fmt::Display for OutputFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match &self {
-            OutputFormat::Pdf => "pdf",
-            OutputFormat::Fdf => "fdf",
-            OutputFormat::Xfdf => "xfdf",
-            OutputFormat::Json => "json",
-        })
-    }
-}
-
-impl std::fmt::Debug for OutputFormat {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match &self {
-            OutputFormat::Pdf => "pdf",
-            OutputFormat::Fdf => "fdf",
-            OutputFormat::Xfdf => "xfdf",
-            OutputFormat::Json => "json",
-        })
-    }
-}
-
-impl std::str::FromStr for OutputFormat {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "pdf" => Ok(OutputFormat::Pdf),
-            "fdf" => Ok(OutputFormat::Fdf),
-            "xfdf" => Ok(OutputFormat::Xfdf),
-            "json" => Ok(OutputFormat::Json),
-            _ => Err("Unknown format passed!".to_string()),
-        }
-    }
-}
-
-struct PdfPrinter<'a> {
-    config: &'a Config,
-    xfdf_printer: &'a XfdfPrinter,
-}
-struct FdfPrinter {}
-struct XfdfPrinter {}
-struct JsonPrinter {}
-
-trait AmsPrinter {
-    fn write_to_file(&self, form: &mut amsform::AmsForm, file: &str);
-}
-
-impl<'a> AmsPrinter for PdfPrinter<'a> {
-    fn write_to_file(&self, form: &mut amsform::AmsForm, file: &str) {
-        let mut tmp_fdf_file = temp_dir();
-        tmp_fdf_file.push("fbihtax.xfdf");
-        let tmp_fdf_file_str = tmp_fdf_file.to_str().expect("Can't create temporary file");
-        self.xfdf_printer.write_to_file(form, tmp_fdf_file_str);
-        let _process = std::process::Command::new(&self.config.pdf.pdftk_path)
-            .args(&[
-                self.config.pdf.cache_location.clone(),
-                "fill_form".to_string(),
-                tmp_fdf_file_str.to_string(),
-                "output".to_string(),
-                file.to_string()
-            ])
-            .output()
-            .ok()
-            .expect("Failed to execute pdftk. Ensure it is installed and path is properly configured in .fbihtax.json");
-    }
-}
-
-impl AmsPrinter for FdfPrinter {
-    fn write_to_file(&self, form: &mut amsform::AmsForm, file: &str) {
-        let dict = form.to_dict();
-        let fdf_data = FdfData::from_dict(dict);
-        fdf_generator::write_fdf(fdf_data, file.to_string());
-    }
-}
-
-impl AmsPrinter for XfdfPrinter {
-    fn write_to_file(&self, form: &mut amsform::AmsForm, file: &str) {
-        let dict = form.to_dict();
-        let fdf_data = FdfData::from_dict(dict);
-        fdf_generator::write_xfdf(fdf_data, file.to_string());
-    }
-}
-
-impl AmsPrinter for JsonPrinter {
-    fn write_to_file(&self, form: &mut amsform::AmsForm, file: &str) {
-        let breakdown_writer = File::create(file).expect("Failed creating output JSON");
-        let dict = form.to_dict();
-        serde_json::to_writer_pretty(breakdown_writer, &dict).expect("Failed saving output JSON");
-    }
-}
+use clap::Parser;
+use printer::{AmsPrinter, FdfPrinter, JsonPrinter, OutputFormat, PdfPrinter, XfdfPrinter};
+use rust_decimal::Decimal;
+use rust_decimal_macros::dec;
 
 #[derive(Parser, Debug)]
 pub struct AmsArgs {

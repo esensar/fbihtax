@@ -6,8 +6,8 @@ mod config;
 mod fdf;
 mod forms;
 use clap::{AppSettings, Parser, Subcommand};
-use commands::tax_breakdown::TaxBreakdownArgs;
-use commands::{ams::AmsArgs, tax_breakdown};
+use commands::taxbreakdown::TaxBreakdownArgs;
+use commands::{ams::AmsArgs, taxbreakdown};
 use std::{fs::File, path::Path};
 
 use crate::{commands::ams, config::Config};
@@ -59,7 +59,7 @@ fn main() {
     match &args.command {
         Commands::Ams(ams_args) => ams::handle_command(config, ams_args),
         Commands::TaxBreakdown(tax_breakdown_args) => {
-            tax_breakdown::handle_command(config, tax_breakdown_args)
+            taxbreakdown::handle_command(config, tax_breakdown_args)
         }
     }
 }
