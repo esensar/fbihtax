@@ -23,7 +23,7 @@ $ sudo sh -c "$(fetch -o - https://raw.githubusercontent.com/esensar/fbihtax/mai
 
 ## Usage
 
-This is preferrably used automatically on some server, but it can also be used manually if needed. For automatic example check out (TODO: add example repo).
+This is preferrably used automatically on some server, but it can also be used manually if needed. For automatic example check out [fbihtax-example-project](https://github.com/esensar/fbihtax-example-project) which can also be used as a template.
 
 For more information use `fbihtax --help`.
 
