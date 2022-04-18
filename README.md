@@ -40,7 +40,7 @@ For more customization `fdf`, `xfdf` or `json` formats can be generated. To use 
 
 ```
 $ fbihtax ams --income 1000.00 --output-format xfdf
-$ pdftk taxcache.pdf fill_form amsform.xfdf output amsform.pdf replacement_font "Your Font Family Here"
+$ pdftk amscache.pdf fill_form amsform.xfdf output amsform.pdf replacement_font "Your Font Family Here"
 ```
 > Above command requires pdftk-java version above v3.3.0 since replacement_font was not available before
 
