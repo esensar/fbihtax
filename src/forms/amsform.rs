@@ -219,6 +219,29 @@ impl AmsForm {
             .filter(|(k, _)| !k.is_empty())
             .collect()
     }
+
+    pub fn get_number_field_value(&self, field: FormField) -> Decimal {
+        Decimal::from_str_radix(self.get_text_field_value(field).as_str(), 10).unwrap()
+    }
+
+    pub fn get_text_field_value(&self, field: FormField) -> String {
+        println!(
+            "Loading text field {} of {}",
+            field as usize,
+            self.pdf_form.len()
+        );
+        match self.pdf_form.get_state(field as usize) {
+            pdf_forms::FieldState::Text {
+                text,
+                readonly,
+                required,
+            } => {
+                println!("Loaded text: {}", text);
+                text
+            }
+            _ => panic!("Unsupported field type!"),
+        }
+    }
 }
 
 pub fn load_ams_form(input_file: String) -> AmsForm {

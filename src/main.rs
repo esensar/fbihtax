@@ -9,6 +9,7 @@ mod format;
 mod forms;
 use clap::{AppSettings, Parser, Subcommand};
 use commands::ams::{self, AmsArgs};
+use commands::db::DbArgs;
 use commands::gpd::{self, GpdArgs};
 use commands::taxbreakdown::{self, TaxBreakdownArgs};
 use config::Config;
@@ -32,6 +33,7 @@ struct CliArgs {
 enum Commands {
     Ams(AmsArgs),
     Gpd(GpdArgs),
+    Db(DbArgs),
     TaxBreakdown(TaxBreakdownArgs),
 }
 
@@ -43,6 +45,7 @@ fn main() {
     match &args.command {
         Commands::Ams(ams_args) => ams::handle_command(config, ams_args),
         Commands::Gpd(gpd_args) => gpd::handle_command(config, gpd_args),
+        Commands::Db(db_args) => commands::db::handle_command(config, db_args),
         Commands::TaxBreakdown(tax_breakdown_args) => {
             taxbreakdown::handle_command(config, tax_breakdown_args)
         }
