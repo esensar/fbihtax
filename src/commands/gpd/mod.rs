@@ -18,12 +18,23 @@ pub struct GpdArgs {
     #[clap(long, help = "Year (YYYY)")]
     year: Option<String>,
     #[clap(
-        short,
         long,
         help = "Personal deduction (by default it is 300 for each months => 300 * 12 = 3600)",
         default_value_t = dec!(3600)
     )]
     personal_deduction: Decimal,
+    #[clap(
+        long,
+        help = "Sum of 11th column of GIP form (tax base)",
+        default_value_t = dec!(0)
+    )]
+    gip_income: Decimal,
+    #[clap(
+        long,
+        help = "Sum of 15th column of GIP form (taxes paid)",
+        default_value_t = dec!(0)
+    )]
+    gip_tax_paid: Decimal,
     #[clap(long, help = "Output format (PDF, FDF, XFDF, JSON)", default_value_t = OutputFormat::Pdf)]
     output_format: OutputFormat,
     #[clap(long, help = "Path to config file with user specific settings")]
@@ -91,6 +102,8 @@ pub fn handle_command(config: Config, args: &GpdArgs) {
         FormField::PersonalDeduction,
         args.personal_deduction.to_string(),
     );
+    form.add_gip_info(args.gip_income, args.gip_tax_paid);
+    form.add_deductions(args.personal_deduction, dec!(0), dec!(0));
 
     let output_path = Path::new(config.output_location.as_str());
     let mut output_file_path = output_path.join(args.output.clone());

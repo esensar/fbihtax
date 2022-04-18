@@ -11,6 +11,7 @@
 		"downloadUrl": "http://www.pufbih.ba/v1/public/upload/obrasci/a9d63-94b8a-obrazac_gpd_1051_ver1__bos_web2.pdf"
 	},
 	"output_location": "default_output_location - by default current directory",
+	"db_location": "fbihtax.db.json",
 	"user": {
 		"name": "User Name",
 		"address": "User Address",

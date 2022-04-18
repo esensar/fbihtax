@@ -14,12 +14,18 @@ pub struct Config {
     pub gpd: GpdConfig,
     #[serde(default = "default_output_location")]
     pub output_location: String,
+    #[serde(default = "default_db_location")]
+    pub db_location: String,
     pub user: Option<UserConfig>,
     pub client: Option<ClientConfig>,
 }
 
 fn default_output_location() -> String {
     ".".to_string()
+}
+
+fn default_db_location() -> String {
+    "fbihtax.db.json".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -116,6 +122,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             output_location: default_output_location(),
+            db_location: default_db_location(),
             pdf: Default::default(),
             ams: AmsConfig::default(),
             gpd: GpdConfig::default(),
