@@ -3,6 +3,7 @@ extern crate reqwest;
 extern crate rust_decimal;
 mod commands;
 mod config;
+mod db;
 mod fdf;
 mod format;
 mod forms;

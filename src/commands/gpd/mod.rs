@@ -5,6 +5,7 @@ use std::{fs::File, path::Path};
 
 use crate::{
     config::{self, Config, UserConfig},
+    db::{self, TaxDb},
     format::printer::{FdfPrinter, JsonPrinter, PdfPrinter, Printer, XfdfPrinter},
     format::OutputFormat,
     forms::gpdform::{self, FormField},
@@ -16,7 +17,7 @@ use rust_decimal_macros::dec;
 #[derive(Parser, Debug)]
 pub struct GpdArgs {
     #[clap(long, help = "Year (YYYY)")]
-    year: Option<String>,
+    year: String,
     #[clap(
         long,
         help = "Personal deduction (by default it is 300 for each months => 300 * 12 = 3600)",
@@ -68,6 +69,7 @@ pub fn handle_command(config: Config, args: &GpdArgs) {
     }
 
     let mut form = gpdform::load_gpd_form(config.gpd.cache_location.clone());
+    let db: TaxDb = db::parse_db_with_default(config.db_location.as_str());
 
     let fdf_printer = FdfPrinter {};
     let xfdf_printer = XfdfPrinter {};
@@ -94,16 +96,17 @@ pub fn handle_command(config: Config, args: &GpdArgs) {
         }
     }.expect("Missing user configuration. Either fill it in default config file or pass --user-config parameter.");
     form.fill_user_info(&user_config);
-    match &args.year {
-        Some(year_string) => form.fill_year_info(year_string.clone()),
-        None => {}
-    }
+    form.fill_year_info(args.year.clone());
     form.fill_field(
         FormField::PersonalDeduction,
         args.personal_deduction.to_string(),
     );
     form.add_gip_info(args.gip_income, args.gip_tax_paid);
     form.add_deductions(args.personal_deduction, dec!(0), dec!(0));
+    form.add_ams_info(
+        db.total_income_for_year(args.year.clone()),
+        db.total_tax_paid_for_year(args.year.clone()),
+    );
 
     let output_path = Path::new(config.output_location.as_str());
     let mut output_file_path = output_path.join(args.output.clone());

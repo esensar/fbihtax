@@ -5,6 +5,7 @@ use std::{fs::File, path::Path};
 
 use crate::{
     config::{self, ClientConfig, Config, UserConfig},
+    db::{self, AmsInfo, TaxDb},
     format::printer::{FdfPrinter, JsonPrinter, PdfPrinter, Printer, XfdfPrinter},
     format::OutputFormat,
     forms::amsform::{self, FormField},
@@ -21,7 +22,7 @@ pub struct AmsArgs {
         help = "Decimal income value in BAM (will be rounded to 2 decimals)"
     )]
     income: Decimal,
-    #[clap(long, help = "Invoice date (YYYY-MM-DD)")]
+    #[clap(long, help = "Invoice date (YYYY-MM-DD). Must be present for DB to work")]
     invoice_date: Option<String>,
     #[clap(
         short,
@@ -43,6 +44,11 @@ pub struct AmsArgs {
         default_value = "amsform.pdf"
     )]
     output: String,
+    #[clap(
+        long,
+        help = "By default DB file is updated with this AMS form. Add this flag to skip writing to db"
+    )]
+    skip_db: bool,
 }
 
 pub fn handle_command(config: Config, args: &AmsArgs) {
@@ -122,7 +128,7 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
     form.fill_main_field(FormField::CompanyAddress, client_config.address);
     form.fill_main_field(FormField::CompanyCountry, client_config.country);
 
-    form.add_income(income_after, dec!(0));
+    let ams_info = form.add_income(income_after, dec!(0));
 
     let output_path = Path::new(config.output_location.as_str());
     let mut output_file_path = output_path.join(args.output.clone());
@@ -134,4 +140,21 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
 
     printer.write_to_file(form.to_dict(), output_file_path_str);
     println!("Saved AMS form to: {}", output_file_path_str);
+
+    if !args.skip_db {
+        if let Some(invoice_date) = &args.invoice_date {
+            write_to_db(&config, ams_info, invoice_date.clone());
+        }
+    }
+}
+
+fn write_to_db(config: &Config, ams_info: AmsInfo, invoice_date: String) {
+    println!("Loading database file");
+    let mut tax_db: TaxDb = db::parse_db_with_default(config.db_location.as_str());
+    tax_db.add_ams_info(ams_info, invoice_date);
+    tax_db.write_to_file(config.db_location.as_str());
+    println!(
+        "Successfully updated DB file: {}",
+        config.db_location.as_str()
+    );
 }

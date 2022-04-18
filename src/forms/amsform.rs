@@ -2,7 +2,10 @@ extern crate pdf_forms;
 extern crate rust_decimal;
 use std::{collections::HashMap, ops::Add};
 
-use crate::forms::formutils::{fill_field, format_money_value};
+use crate::{
+    db::AmsInfo,
+    forms::formutils::{fill_field, format_money_value},
+};
 use pdf_forms::Form;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
@@ -114,19 +117,24 @@ impl AmsForm {
         fill_repeating_field(&mut self.pdf_form, line, field, value);
     }
 
-    pub fn add_income(&mut self, base_value: Decimal, tax_paid_abroad: Decimal) {
+    pub fn add_income(&mut self, base_value: Decimal, tax_paid_abroad: Decimal) -> AmsInfo {
         let health_insurance = base_value * dec!(0.04);
         let tax_base = base_value - health_insurance;
         let tax_amount: Decimal = tax_base * dec!(0.10);
         let tax_to_pay = tax_amount - tax_paid_abroad;
-        self.income_lines.push(IncomeLine {
+        let income_line = IncomeLine {
             value: base_value,
             health_insurance,
             tax_base,
             tax_amount,
             tax_paid_abroad,
             tax_to_pay,
-        });
+        };
+        self.income_lines.push(income_line);
+        return AmsInfo {
+            income_total: base_value,
+            tax_paid: tax_to_pay,
+        };
     }
 
     fn fill_income_lines(&mut self) {
