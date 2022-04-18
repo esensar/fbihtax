@@ -8,7 +8,7 @@ Currently PDF output requires `pdftk` to be installed, otherwise `fdf` or `json`
 
 ## Installation
 
-Check out releases for build binaries. Script is also available for installation, but it requires root access. Script also install `pdftk` version required to properly run this tool.
+Check out releases for built binaries. Script is also available for installation, but it requires root access. Script will also install `pdftk` version required to properly run this tool.
 ```
 $ sudo sh -c "$(curl -fsSL https://raw.githubusercontent.com/esensar/fbihtax/main/scripts/install.sh)"
 ```
