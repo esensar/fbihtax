@@ -7,11 +7,10 @@ mod fdf;
 mod format;
 mod forms;
 use clap::{AppSettings, Parser, Subcommand};
-use commands::taxbreakdown::TaxBreakdownArgs;
-use commands::{ams::AmsArgs, taxbreakdown};
-use std::{fs::File, path::Path};
-
-use crate::{commands::ams, config::Config};
+use commands::ams::{self, AmsArgs};
+use commands::gpd::{self, GpdArgs};
+use commands::taxbreakdown::{self, TaxBreakdownArgs};
+use config::Config;
 
 #[derive(Parser, Debug)]
 #[clap(about, version, author)]
@@ -31,6 +30,7 @@ struct CliArgs {
 #[derive(Subcommand, Debug)]
 enum Commands {
     Ams(AmsArgs),
+    Gpd(GpdArgs),
     TaxBreakdown(TaxBreakdownArgs),
 }
 
@@ -39,26 +39,9 @@ fn main() {
 
     let config: Config = config::parse_config_with_default(args.config.as_str());
 
-    if !Path::new(config.pdf.cache_location.as_str()).exists() {
-        println!(
-            "Cached form not found at: {}\nResorting to download from: {}",
-            config.pdf.cache_location, config.pdf.download_url
-        );
-        let mut result = reqwest::blocking::get(config.pdf.download_url.to_string())
-            .expect("Failed downloading form PDF");
-        let mut file_writer =
-            File::create(config.pdf.cache_location.as_str()).expect("Failed creating cache file");
-        result
-            .copy_to(&mut file_writer)
-            .expect("Failed saving downloaded PDF");
-        println!(
-            "Downloaded form and cached to: {}",
-            config.pdf.cache_location
-        );
-    }
-
     match &args.command {
         Commands::Ams(ams_args) => ams::handle_command(config, ams_args),
+        Commands::Gpd(gpd_args) => gpd::handle_command(config, gpd_args),
         Commands::TaxBreakdown(tax_breakdown_args) => {
             taxbreakdown::handle_command(config, tax_breakdown_args)
         }

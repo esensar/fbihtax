@@ -1,7 +1,7 @@
 extern crate clap;
 extern crate rust_decimal;
 
-use std::path::Path;
+use std::{fs::File, path::Path};
 
 use crate::{
     config::{self, ClientConfig, Config, UserConfig},
@@ -30,7 +30,7 @@ pub struct AmsArgs {
         default_value_t = dec!(20)
     )]
     deduction_percentage: Decimal,
-    #[clap(long, help = "Output format (PDF, FDF, XFDF, JSON)", default_value_t = OutputFormat::Json)]
+    #[clap(long, help = "Output format (PDF, FDF, XFDF, JSON)", default_value_t = OutputFormat::Pdf)]
     output_format: OutputFormat,
     #[clap(long, help = "Path to config file with user specific settings")]
     user_config: Option<String>,
@@ -40,20 +40,38 @@ pub struct AmsArgs {
         short,
         long,
         help = "Path to save output file to",
-        default_value = "amsform.json"
+        default_value = "amsform.pdf"
     )]
     output: String,
 }
 
 pub fn handle_command(config: Config, args: &AmsArgs) {
-    let mut form = amsform::load_ams_form(config.pdf.cache_location.clone());
+    if !Path::new(config.ams.cache_location.as_str()).exists() {
+        println!(
+            "Cached AMS form not found at: {}\nResorting to download from: {}",
+            config.ams.cache_location, config.ams.download_url
+        );
+        let mut result = reqwest::blocking::get(config.ams.download_url.to_string())
+            .expect("Failed downloading form PDF");
+        let mut file_writer =
+            File::create(config.ams.cache_location.as_str()).expect("Failed creating cache file");
+        result
+            .copy_to(&mut file_writer)
+            .expect("Failed saving downloaded PDF");
+        println!(
+            "Downloaded AMS form and cached to: {}",
+            config.ams.cache_location
+        );
+    }
+
+    let mut form = amsform::load_ams_form(config.ams.cache_location.clone());
 
     let fdf_printer = FdfPrinter {};
     let xfdf_printer = XfdfPrinter {};
     let json_printer = JsonPrinter::default();
     let pdf_printer = PdfPrinter {
         config: &config,
-        source_pdf: config.pdf.cache_location.clone(),
+        source_pdf: config.ams.cache_location.clone(),
         xfdf_printer: &xfdf_printer,
     };
 
@@ -116,47 +134,4 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
 
     printer.write_to_file(form.to_dict(), output_file_path_str);
     println!("Saved AMS form to: {}", output_file_path_str);
-}
-
-#[cfg(test)]
-mod tests {
-    use std::str::FromStr;
-
-    use super::*;
-
-    #[test]
-    fn output_format_name_normal_test() {
-        assert_eq!(OutputFormat::Pdf, OutputFormat::from_str("pdf").unwrap());
-        assert_eq!(OutputFormat::Json, OutputFormat::from_str("json").unwrap());
-        assert_eq!(OutputFormat::Fdf, OutputFormat::from_str("fdf").unwrap());
-        assert_eq!(OutputFormat::Xfdf, OutputFormat::from_str("xfdf").unwrap());
-    }
-
-    #[test]
-    fn output_format_name_unsupported_test() {
-        assert!(OutputFormat::from_str("yml").is_err());
-        assert!(OutputFormat::from_str("xml").is_err());
-    }
-
-    #[test]
-    fn output_format_name_wrong_case_test() {
-        assert!(OutputFormat::from_str("PDF").is_err());
-        assert!(OutputFormat::from_str("JSON").is_err());
-        assert!(OutputFormat::from_str("FDF").is_err());
-        assert!(OutputFormat::from_str("XFDF").is_err());
-    }
-
-    #[test]
-    fn output_format_display_test() {
-        assert_eq!("format is pdf", format!("format is {}", OutputFormat::Pdf));
-        assert_eq!(
-            "format is json",
-            format!("format is {}", OutputFormat::Json)
-        );
-        assert_eq!("format is fdf", format!("format is {}", OutputFormat::Fdf));
-        assert_eq!(
-            "format is xfdf",
-            format!("format is {}", OutputFormat::Xfdf)
-        );
-    }
 }

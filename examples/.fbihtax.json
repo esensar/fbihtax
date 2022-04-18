@@ -1,14 +1,22 @@
 {
 	"pdf": {
-		"cacheLocation": "tax.pdf",
-		"downloadUrl": "http://www.pufbih.ba/v1/public/upload/obrasci/b839c-obrazac-ams_bos_web.pdf",
 		"pdftk_path": "pdftk"
+	},
+	"ams": {
+		"cacheLocation": "amscache.pdf",
+		"downloadUrl": "http://www.pufbih.ba/v1/public/upload/obrasci/b839c-obrazac-ams_bos_web.pdf"
+	},
+	"gpd": {
+		"cacheLocation": "gpdcache.pdf",
+		"downloadUrl": "http://www.pufbih.ba/v1/public/upload/obrasci/a9d63-94b8a-obrazac_gpd_1051_ver1__bos_web2.pdf"
 	},
 	"output_location": "default_output_location - by default current directory",
 	"user": {
 		"name": "User Name",
 		"address": "User Address",
-		"jmbg": "12345678901234"
+		"jmbg": "12345678901234",
+		"phone": "+387611234567",
+		"email": "user@mail.com"
 	},
 	"client": {
 		"name": "Client name",

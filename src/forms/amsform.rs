@@ -2,6 +2,7 @@ extern crate pdf_forms;
 extern crate rust_decimal;
 use std::{collections::HashMap, ops::Add};
 
+use crate::forms::formutils::{fill_field, format_money_value};
 use pdf_forms::Form;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
@@ -89,17 +90,6 @@ pub struct AmsForm {
     pdf_form: Form,
     fields: HashMap<usize, String>,
     income_lines: Vec<IncomeLine>,
-}
-
-fn format_money_value(value: Decimal) -> String {
-    value.round_dp(2).to_string()
-}
-
-fn fill_field(pdf_form: &mut Form, field_index: usize, value: String) {
-    match pdf_form.set_text(field_index, value) {
-        Ok(_) => (),
-        Err(why) => panic!("{:?}", why),
-    }
 }
 
 fn fill_repeating_field(pdf_form: &mut Form, line: u32, field: RepeatingFormField, value: String) {

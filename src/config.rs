@@ -8,6 +8,10 @@ use std::{fs::File, io::BufReader};
 pub struct Config {
     #[serde(default)]
     pub pdf: PdfConfig,
+    #[serde(default)]
+    pub ams: AmsConfig,
+    #[serde(default)]
+    pub gpd: GpdConfig,
     #[serde(default = "default_output_location")]
     pub output_location: String,
     pub user: Option<UserConfig>,
@@ -21,12 +25,26 @@ fn default_output_location() -> String {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PdfConfig {
-    #[serde(default = "default_cache_location")]
-    pub cache_location: String,
-    #[serde(default = "default_download_url")]
-    pub download_url: String,
     #[serde(default = "default_pdftk_path")]
     pub pdftk_path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AmsConfig {
+    #[serde(default = "default_ams_cache_location")]
+    pub cache_location: String,
+    #[serde(default = "default_ams_download_url")]
+    pub download_url: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GpdConfig {
+    #[serde(default = "default_gpd_cache_location")]
+    pub cache_location: String,
+    #[serde(default = "default_gpd_download_url")]
+    pub download_url: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -35,6 +53,8 @@ pub struct UserConfig {
     pub name: String,
     pub address: String,
     pub jmbg: String,
+    pub phone: Option<String>,
+    pub email: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -45,12 +65,21 @@ pub struct ClientConfig {
     pub country: String,
 }
 
-fn default_cache_location() -> String {
-    "tax.pdf".to_string()
+fn default_ams_cache_location() -> String {
+    "amscache.pdf".to_string()
 }
 
-fn default_download_url() -> String {
+fn default_ams_download_url() -> String {
     "http://www.pufbih.ba/v1/public/upload/obrasci/b839c-obrazac-ams_bos_web.pdf".to_string()
+}
+
+fn default_gpd_cache_location() -> String {
+    "gpdcache.pdf".to_string()
+}
+
+fn default_gpd_download_url() -> String {
+    "http://www.pufbih.ba/v1/public/upload/obrasci/a9d63-94b8a-obrazac_gpd_1051_ver1__bos_web2.pdf"
+        .to_string()
 }
 
 fn default_pdftk_path() -> String {
@@ -60,9 +89,25 @@ fn default_pdftk_path() -> String {
 impl Default for PdfConfig {
     fn default() -> Self {
         Self {
-            cache_location: default_cache_location(),
-            download_url: default_download_url(),
             pdftk_path: default_pdftk_path(),
+        }
+    }
+}
+
+impl Default for AmsConfig {
+    fn default() -> Self {
+        Self {
+            cache_location: default_ams_cache_location(),
+            download_url: default_ams_download_url(),
+        }
+    }
+}
+
+impl Default for GpdConfig {
+    fn default() -> Self {
+        Self {
+            cache_location: default_gpd_cache_location(),
+            download_url: default_gpd_download_url(),
         }
     }
 }
@@ -72,6 +117,8 @@ impl Default for Config {
         Self {
             output_location: default_output_location(),
             pdf: Default::default(),
+            ams: AmsConfig::default(),
+            gpd: GpdConfig::default(),
             user: None,
             client: None,
         }
