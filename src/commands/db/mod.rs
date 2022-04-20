@@ -18,7 +18,9 @@ pub struct DbArgs {
 
 #[derive(Subcommand, Debug)]
 enum DbCommands {
+    #[clap(about = "Load fbihtax generated income tax PDF form (AMS form) into the database")]
     Load(LoadArgs),
+    #[clap(about = "Manually insert paid income tax data into the database")]
     Insert(InsertArgs),
 }
 

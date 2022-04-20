@@ -31,9 +31,13 @@ struct CliArgs {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    #[clap(about = "Manage AMS form (income tax payment form)")]
     Ams(AmsArgs),
+    #[clap(about = "Manage GPD form (yearly tax report)")]
     Gpd(GpdArgs),
+    #[clap(about = "Manage fbihtax database")]
     Db(DbArgs),
+    #[clap(about = "Tax breakdown to assist with income tax payment")]
     TaxBreakdown(TaxBreakdownArgs),
 }
 
