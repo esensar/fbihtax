@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fs::File, io::Write};
 
+use crate::error::FbihtaxResult;
+
 static HEADER: &str = concat!("%FDF-1.2\n", "1 0 obj<</FDF<< /Fields[\n");
 static FOOTER: &str = concat!(
     "] >> >>\n",
@@ -43,40 +45,30 @@ impl FdfData {
     }
 }
 
-pub fn write_xfdf(data: FdfData, output_file: String) {
-    let mut fdf_file = File::create(output_file).expect("Failed creating xfdf file!");
-    fdf_file
-        .write_all(XFDF_HEADER.as_bytes())
-        .expect("Writing xfdf file failed!");
+pub fn write_xfdf(data: FdfData, output_file: String) -> FbihtaxResult<()> {
+    let mut fdf_file = File::create(output_file)?;
+    fdf_file.write_all(XFDF_HEADER.as_bytes())?;
     for entry in data.entries {
-        fdf_file
-            .write_all(
-                format!(
-                    "    <field name=\"{}\"><value>{}</value></field>\n",
-                    entry.title, entry.value
-                )
-                .as_bytes(),
+        fdf_file.write_all(
+            format!(
+                "    <field name=\"{}\"><value>{}</value></field>\n",
+                entry.title, entry.value
             )
-            .expect("Writing xfdf file failed!");
+            .as_bytes(),
+        )?;
     }
-    fdf_file
-        .write_all(XFDF_FOOTER.as_bytes())
-        .expect("Writing xfdf file failed!");
+    fdf_file.write_all(XFDF_FOOTER.as_bytes())?;
+    Ok(())
 }
 
-pub fn write_fdf(data: FdfData, output_file: String) {
-    let mut fdf_file = File::create(output_file).expect("Failed creating fdf file!");
-    fdf_file
-        .write_all(HEADER.as_bytes())
-        .expect("Writing fdf file failed!");
+pub fn write_fdf(data: FdfData, output_file: String) -> FbihtaxResult<()> {
+    let mut fdf_file = File::create(output_file)?;
+    fdf_file.write_all(HEADER.as_bytes())?;
     for entry in data.entries {
-        fdf_file
-            .write_all(format!("<</T({})/V({})>>\n", entry.title, entry.value).as_bytes())
-            .expect("Writing fdf file failed!");
+        fdf_file.write_all(format!("<</T({})/V({})>>\n", entry.title, entry.value).as_bytes())?;
     }
-    fdf_file
-        .write_all(FOOTER.as_bytes())
-        .expect("Writing fdf file failed!");
+    fdf_file.write_all(FOOTER.as_bytes())?;
+    Ok(())
 }
 
 #[cfg(test)]

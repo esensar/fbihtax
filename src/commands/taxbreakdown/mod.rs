@@ -12,6 +12,7 @@ use serde_json::json;
 
 use crate::{
     config::Config,
+    error::{FbihtaxError, FbihtaxResult, UserErrorKind},
     format::printer::{JsonPrinter, Printer, StdoutPrinter},
     format::{utils::fill_template, OutputFormat},
 };
@@ -48,8 +49,8 @@ pub struct TaxBreakdownArgs {
     output_template_file: Option<String>,
 }
 
-fn default_json_formatter(data: HashMap<String, String>) -> serde_json::Value {
-    json!({
+fn default_json_formatter(data: HashMap<String, String>) -> FbihtaxResult<serde_json::Value> {
+    Ok(json!({
         "income_tax": data.get("income_tax"),
         "health_insurance": {
             "federation": data.get("health_insurance_federation"),
@@ -57,12 +58,13 @@ fn default_json_formatter(data: HashMap<String, String>) -> serde_json::Value {
             "total": data.get("health_insurance_total")
         },
         "total": data.get("total")
-    })
+    }))
 }
 
-pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
-    let mut json_formatter: Box<dyn Fn(HashMap<String, String>) -> serde_json::Value> =
-        Box::new(default_json_formatter);
+pub fn handle_command(config: Config, args: &TaxBreakdownArgs) -> FbihtaxResult<()> {
+    let mut json_formatter: Box<
+        dyn Fn(HashMap<String, String>) -> FbihtaxResult<serde_json::Value>,
+    > = Box::new(default_json_formatter);
 
     let mut stdout_template = concat!(
         "Income Tax breakdown:\n",
@@ -81,26 +83,27 @@ pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
     match args.output_template.clone() {
         Some(template) => {
             stdout_template = template.clone();
-            json_formatter = Box::new(move |data: HashMap<String, String>| -> serde_json::Value {
-                let result = fill_template(template.clone(), data);
-                serde_json::from_str(result.as_str()).unwrap()
-            });
+            json_formatter = Box::new(
+                move |data: HashMap<String, String>| -> FbihtaxResult<serde_json::Value> {
+                    let result = fill_template(template.clone(), data);
+                    serde_json::from_str(result.as_str()).map_err(FbihtaxError::from)
+                },
+            );
         }
         None => {}
     };
     match args.output_template_file.clone() {
         Some(template_file_path) => {
-            let mut template_file =
-                File::open(template_file_path.clone()).expect("Can't open the template file");
+            let mut template_file = File::open(template_file_path.clone())?;
             let mut template = String::new();
-            template_file
-                .read_to_string(&mut template)
-                .expect("Failed reading the template file");
+            template_file.read_to_string(&mut template)?;
             stdout_template = template.clone();
-            json_formatter = Box::new(move |data: HashMap<String, String>| -> serde_json::Value {
-                let result = fill_template(template.clone(), data);
-                serde_json::from_str(result.as_str()).unwrap()
-            });
+            json_formatter = Box::new(
+                move |data: HashMap<String, String>| -> FbihtaxResult<serde_json::Value> {
+                    let result = fill_template(template.clone(), data);
+                    serde_json::from_str(result.as_str()).map_err(FbihtaxError::from)
+                },
+            );
         }
         None => {}
     };
@@ -113,7 +116,11 @@ pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
     let printer: &dyn Printer = match args.output_format {
         OutputFormat::Json => &json_printer,
         OutputFormat::Stdout => &stdout_printer,
-        _ => panic!("Unsupported format!"),
+        format => {
+            return Err(FbihtaxError::UserError(
+                UserErrorKind::UnsupportedOutputFormat(format),
+            ))
+        }
     };
 
     let income_dec: Decimal = args.income.round_dp(2);
@@ -128,13 +135,16 @@ pub fn handle_command(config: Config, args: &TaxBreakdownArgs) {
 
     let output_path = Path::new(config.output_location.as_str());
     let output_file_path = output_path.join(&args.output);
-    let output_file_path_str = output_file_path
-        .to_str()
-        .expect("Output location seems to be invalid!");
+    let output_file_path_str =
+        output_file_path
+            .to_str()
+            .ok_or(FbihtaxError::UserError(UserErrorKind::Generic(
+                "Output location seems to be invalid!".to_string(),
+            )))?;
     let data = TaxBreakdownData {
         income_tax: tax_amount,
         health_insurance_federation,
         health_insurance_canton,
     };
-    printer.write_to_file(data.to_dict(), output_file_path_str);
+    printer.write_to_file(data.to_dict(), output_file_path_str)
 }

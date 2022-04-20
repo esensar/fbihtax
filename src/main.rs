@@ -4,6 +4,7 @@ extern crate rust_decimal;
 mod commands;
 mod config;
 mod db;
+mod error;
 mod fdf;
 mod format;
 mod forms;
@@ -13,6 +14,7 @@ use commands::db::DbArgs;
 use commands::gpd::{self, GpdArgs};
 use commands::taxbreakdown::{self, TaxBreakdownArgs};
 use config::Config;
+use error::FbihtaxResult;
 
 #[derive(Parser, Debug)]
 #[clap(about, version, author)]
@@ -41,7 +43,7 @@ enum Commands {
     TaxBreakdown(TaxBreakdownArgs),
 }
 
-fn main() {
+fn main() -> FbihtaxResult<()> {
     let args = CliArgs::parse();
 
     let config: Config = config::parse_config_with_default(args.config.as_str());

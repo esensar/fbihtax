@@ -1,15 +1,16 @@
 use pdf_forms::Form;
 use rust_decimal::Decimal;
 
+use crate::error::{FbihtaxError, FbihtaxResult};
+
 pub fn format_money_value(value: Decimal) -> String {
     value.round_dp(2).to_string()
 }
 
-pub fn fill_field(pdf_form: &mut Form, field_index: usize, value: String) {
-    match pdf_form.set_text(field_index, value) {
-        Ok(_) => (),
-        Err(why) => panic!("{:?}", why),
-    }
+pub fn fill_field(pdf_form: &mut Form, field_index: usize, value: String) -> FbihtaxResult<()> {
+    pdf_form
+        .set_text(field_index, value)
+        .map_err(FbihtaxError::from)
 }
 
 #[cfg(test)]

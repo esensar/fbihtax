@@ -4,6 +4,8 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
+use crate::error::{FbihtaxError, FbihtaxResult};
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaxDb {
@@ -55,30 +57,20 @@ impl TaxDb {
         self.ams.insert(invoice_date, ams_info);
     }
 
-    pub fn write_to_file(&self, file: &str) {
-        let breakdown_writer = File::create(file).expect("Failed creating output JSON");
-        serde_json::to_writer_pretty(breakdown_writer, &self).expect("Failed saving output JSON");
+    pub fn write_to_file(&self, file: &str) -> FbihtaxResult<()> {
+        let breakdown_writer = File::create(file)?;
+        serde_json::to_writer_pretty(breakdown_writer, &self).map_err(FbihtaxError::from)
     }
 }
 
-fn parse_from_reader<T: DeserializeOwned>(reader: BufReader<File>) -> Result<T, String> {
-    serde_json::from_reader(reader).map_err(|err| err.to_string())
+fn parse_from_reader<T: DeserializeOwned>(reader: BufReader<File>) -> FbihtaxResult<T> {
+    serde_json::from_reader(reader).map_err(FbihtaxError::from)
 }
 
-fn parse_db_to_result<T: for<'de> Deserialize<'de>>(config_location: &str) -> Result<T, String> {
-    File::open(config_location)
-        .map(BufReader::new)
-        .map_err(|err| err.to_string())
-        .and_then(parse_from_reader)
+pub fn parse_db<T: for<'de> Deserialize<'de>>(db_location: &str) -> FbihtaxResult<T> {
+    parse_from_reader(File::open(db_location).map(BufReader::new)?)
 }
 
-pub fn parse_db_with_default<T: Default + for<'de> Deserialize<'de>>(config_location: &str) -> T {
-    parse_db_to_result(config_location).unwrap_or_default()
-}
-
-pub fn parse_db<T: for<'de> Deserialize<'de>>(db_location: &str) -> Option<T> {
-    match parse_db_to_result(db_location) {
-        Ok(r) => Some(r),
-        Err(_) => None,
-    }
+pub fn parse_db_with_default<T: Default + for<'de> Deserialize<'de>>(db_location: &str) -> T {
+    parse_db(db_location).unwrap_or_default()
 }

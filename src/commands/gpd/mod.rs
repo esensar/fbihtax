@@ -6,6 +6,7 @@ use std::{fs::File, path::Path};
 use crate::{
     config::{self, Config, UserConfig},
     db::{self, TaxDb},
+    error::{FbihtaxError, FbihtaxResult, UserErrorKind},
     format::printer::{FdfPrinter, JsonPrinter, PdfPrinter, Printer, XfdfPrinter},
     format::OutputFormat,
     forms::gpdform::{self, FormField},
@@ -49,26 +50,22 @@ pub struct GpdArgs {
     output: String,
 }
 
-pub fn handle_command(config: Config, args: &GpdArgs) {
+pub fn handle_command(config: Config, args: &GpdArgs) -> FbihtaxResult<()> {
     if !Path::new(config.gpd.cache_location.as_str()).exists() {
         println!(
             "Cached GPD form not found at: {}\nResorting to download from: {}",
             config.gpd.cache_location, config.gpd.download_url
         );
-        let mut result = reqwest::blocking::get(config.gpd.download_url.to_string())
-            .expect("Failed downloading form PDF");
-        let mut file_writer =
-            File::create(config.gpd.cache_location.as_str()).expect("Failed creating cache file");
-        result
-            .copy_to(&mut file_writer)
-            .expect("Failed saving downloaded PDF");
+        let mut result = reqwest::blocking::get(config.gpd.download_url.to_string())?;
+        let mut file_writer = File::create(config.gpd.cache_location.as_str())?;
+        result.copy_to(&mut file_writer)?;
         println!(
             "Downloaded GPD form and cached to: {}",
             config.gpd.cache_location
         );
     }
 
-    let mut form = gpdform::load_gpd_form(config.gpd.cache_location.clone());
+    let mut form = gpdform::load_gpd_form(config.gpd.cache_location.clone())?;
     let db: TaxDb = db::parse_db_with_default(config.db_location.as_str());
 
     let fdf_printer = FdfPrinter {};
@@ -85,22 +82,31 @@ pub fn handle_command(config: Config, args: &GpdArgs) {
         OutputFormat::Fdf => &fdf_printer,
         OutputFormat::Xfdf => &xfdf_printer,
         OutputFormat::Json => &json_printer,
-        _ => panic!("Unsupported format!"),
+        format => {
+            return Err(FbihtaxError::UserError(
+                UserErrorKind::UnsupportedOutputFormat(format),
+            ))
+        }
     };
 
     let user_config = match &args.user_config {
-        Some(path) => config::parse_config::<UserConfig>(path.as_str()),
-        None => match &config.user {
-            Some(user_config) => Some(user_config.clone()),
-            None => None
+        Some(path) => config::parse_config::<UserConfig>(path.as_str())?,
+        None => {
+            config
+                .user
+                .clone()
+                .ok_or(FbihtaxError::UserError(UserErrorKind::MissingConfig(
+                    "user configuration".to_string(),
+                    "--user-config".to_string(),
+                )))?
         }
-    }.expect("Missing user configuration. Either fill it in default config file or pass --user-config parameter.");
-    form.fill_user_info(&user_config);
-    form.fill_year_info(args.year.clone());
+    };
+    form.fill_user_info(&user_config)?;
+    form.fill_year_info(args.year.clone())?;
     form.fill_field(
         FormField::PersonalDeduction,
         args.personal_deduction.to_string(),
-    );
+    )?;
     form.add_gip_info(args.gip_income, args.gip_tax_paid);
     form.add_deductions(args.personal_deduction, dec!(0), dec!(0));
     form.add_ams_info(
@@ -112,10 +118,14 @@ pub fn handle_command(config: Config, args: &GpdArgs) {
     let mut output_file_path = output_path.join(args.output.clone());
     let extension = format!("{}", args.output_format);
     output_file_path.set_extension(extension);
-    let output_file_path_str = output_file_path
-        .to_str()
-        .expect("Output location seems to be invalid!");
+    let output_file_path_str =
+        output_file_path
+            .to_str()
+            .ok_or(FbihtaxError::UserError(UserErrorKind::Generic(
+                "Output location seems to be invalid!".to_string(),
+            )))?;
 
-    printer.write_to_file(form.to_dict(), output_file_path_str);
+    printer.write_to_file(form.to_dict()?, output_file_path_str)?;
     println!("Saved GPD form to: {}", output_file_path_str);
+    Ok(())
 }

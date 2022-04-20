@@ -8,6 +8,7 @@ use rust_decimal_macros::dec;
 use crate::{
     config::Config,
     db::{self, TaxDb},
+    error::{FbihtaxError, FbihtaxResult, UserErrorKind},
 };
 
 #[derive(Parser, Debug)]
@@ -34,7 +35,7 @@ pub struct InsertArgs {
     invoice_date: String,
 }
 
-pub fn handle_command(config: Config, args: &InsertArgs) {
+pub fn handle_command(config: Config, args: &InsertArgs) -> FbihtaxResult<()> {
     let income = match &args.income {
         Some(inc) => {
             let deduction_factor: Decimal =
@@ -43,7 +44,11 @@ pub fn handle_command(config: Config, args: &InsertArgs) {
         }
         None => match &args.deduced_income {
             Some(deduced_income) => deduced_income.clone(),
-            None => panic!("Provide either --income or --deduced_income!"),
+            None => {
+                return Err(FbihtaxError::UserError(UserErrorKind::Generic(
+                    "Provide either --income or --deduced-income!".to_string(),
+                )))
+            }
         },
     };
     // TODO: extract tax calculations into a common module
@@ -58,5 +63,5 @@ pub fn handle_command(config: Config, args: &InsertArgs) {
         },
         args.invoice_date.clone(),
     );
-    tax_db.write_to_file(config.db_location.as_str());
+    tax_db.write_to_file(config.db_location.as_str())
 }

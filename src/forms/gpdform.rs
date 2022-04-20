@@ -6,7 +6,7 @@ use pdf_forms::Form;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
-use crate::config::UserConfig;
+use crate::{config::UserConfig, error::FbihtaxResult};
 
 use super::formutils::{fill_field, format_money_value};
 
@@ -114,33 +114,33 @@ impl Deductions {
 }
 
 impl GpdForm {
-    pub fn fill_field(&mut self, field: FormField, value: String) {
+    pub fn fill_field(&mut self, field: FormField, value: String) -> FbihtaxResult<()> {
         self.fields.insert(field as usize, value.clone());
-        fill_field(&mut self.pdf_form, field as usize, value);
+        fill_field(&mut self.pdf_form, field as usize, value)
     }
 
-    pub fn fill_user_info(&mut self, value: &UserConfig) {
-        self.fill_field(FormField::UserName, value.name.clone());
-        self.fill_field(FormField::UserNameP2, value.name.clone());
-        self.fill_field(FormField::UserJmbg, value.jmbg.clone());
-        self.fill_field(FormField::UserJmbgP2, value.jmbg.clone());
-        self.fill_field(FormField::UserAddress, value.address.clone());
+    pub fn fill_user_info(&mut self, value: &UserConfig) -> FbihtaxResult<()> {
+        self.fill_field(FormField::UserName, value.name.clone())?;
+        self.fill_field(FormField::UserNameP2, value.name.clone())?;
+        self.fill_field(FormField::UserJmbg, value.jmbg.clone())?;
+        self.fill_field(FormField::UserJmbgP2, value.jmbg.clone())?;
+        self.fill_field(FormField::UserAddress, value.address.clone())?;
         self.fill_field(
             FormField::UserPhone,
             value.phone.clone().unwrap_or("".to_string()),
-        );
+        )?;
         self.fill_field(
             FormField::UserEmail,
             value.email.clone().unwrap_or("".to_string()),
-        );
+        )
     }
 
-    pub fn fill_year_info(&mut self, year: String) {
+    pub fn fill_year_info(&mut self, year: String) -> FbihtaxResult<()> {
         let year_last_2 = &year[2..year.len()];
-        self.fill_field(FormField::PeriodStart, "0101".to_string());
-        self.fill_field(FormField::PeriodEnd, "3112".to_string());
-        self.fill_field(FormField::TaxYearLast2, year_last_2.to_string());
-        self.fill_field(FormField::TaxYearLast2P2, year_last_2.to_string());
+        self.fill_field(FormField::PeriodStart, "0101".to_string())?;
+        self.fill_field(FormField::PeriodEnd, "3112".to_string())?;
+        self.fill_field(FormField::TaxYearLast2, year_last_2.to_string())?;
+        self.fill_field(FormField::TaxYearLast2P2, year_last_2.to_string())
     }
 
     pub fn add_gip_info(&mut self, gip_income: Decimal, gip_tax_paid: Decimal) {
@@ -165,21 +165,21 @@ impl GpdForm {
         };
     }
 
-    pub fn to_dict(&mut self) -> HashMap<String, String> {
+    pub fn to_dict(&mut self) -> FbihtaxResult<HashMap<String, String>> {
         let mut total_tax_info = TaxInfo {
             income: dec!(0),
             tax_paid: dec!(0),
         };
         match &self.gip_info.clone() {
             Some(gip) => {
-                self.fill_field(FormField::GipIncome, format_money_value(gip.income));
+                self.fill_field(FormField::GipIncome, format_money_value(gip.income))?;
                 total_tax_info = total_tax_info + gip.clone();
             }
             None => {}
         }
         match &self.ams_info.clone() {
             Some(ams) => {
-                self.fill_field(FormField::AugIncome, format_money_value(ams.income));
+                self.fill_field(FormField::AugIncome, format_money_value(ams.income))?;
                 total_tax_info = total_tax_info + ams.clone();
             }
             None => {}
@@ -187,69 +187,72 @@ impl GpdForm {
         self.fill_field(
             FormField::IncomeSum,
             format_money_value(total_tax_info.income),
-        );
+        )?;
         // TODO: Add support for expenses?
-        self.fill_field(FormField::ExpenseSum, format_money_value(dec!(0)));
-        self.fill_field(FormField::ExpenseTotal, format_money_value(dec!(0)));
-        self.fill_field(FormField::ExpenseTotalP2, format_money_value(dec!(0)));
+        self.fill_field(FormField::ExpenseSum, format_money_value(dec!(0)))?;
+        self.fill_field(FormField::ExpenseTotal, format_money_value(dec!(0)))?;
+        self.fill_field(FormField::ExpenseTotalP2, format_money_value(dec!(0)))?;
         self.fill_field(
             FormField::IncomeTotal,
             format_money_value(total_tax_info.income),
-        );
+        )?;
         self.fill_field(
             FormField::IncomeTotalP2,
             format_money_value(total_tax_info.income),
-        );
+        )?;
         self.fill_field(
             FormField::PersonalDeduction,
             format_money_value(self.deductions.personal),
-        );
+        )?;
         self.fill_field(
             FormField::HealthDeduction,
             format_money_value(self.deductions.health),
-        );
+        )?;
         self.fill_field(
             FormField::InterestDeduction,
             format_money_value(self.deductions.interest),
-        );
+        )?;
         self.fill_field(
             FormField::TotalDeduction,
             format_money_value(self.deductions.get_total()),
-        );
+        )?;
         self.fill_field(
             FormField::TotalDeductionP2,
             format_money_value(self.deductions.get_total()),
-        );
+        )?;
         let tax_base = total_tax_info.income - dec!(0) - self.deductions.get_total();
         let tax_to_pay = tax_base * dec!(0.1);
-        self.fill_field(FormField::TaxBaseP2, format_money_value(tax_base));
-        self.fill_field(FormField::TaxTotalP2, format_money_value(tax_to_pay));
+        self.fill_field(FormField::TaxBaseP2, format_money_value(tax_base))?;
+        self.fill_field(FormField::TaxTotalP2, format_money_value(tax_to_pay))?;
         self.fill_field(
             FormField::TaxPaidP2,
             format_money_value(total_tax_info.tax_paid),
-        );
+        )?;
         self.fill_field(
             FormField::ReturnTotalP2,
             format_money_value(tax_to_pay - total_tax_info.tax_paid),
-        );
-        self.fields
+        )?;
+        Ok(self
+            .fields
             .iter()
             .map(|(k, v)| match self.pdf_form.get_name(k.clone()) {
                 Some(name) => (name, v.clone()),
                 None => ("".to_string(), "".to_string()),
             })
             .filter(|(k, _)| !k.is_empty())
-            .collect()
+            .collect())
     }
 }
 
-pub fn load_gpd_form(input_file: String) -> GpdForm {
-    let form = GpdForm {
-        pdf_form: Form::load(input_file).unwrap(),
-        fields: HashMap::new(),
-        gip_info: None,
-        ams_info: None,
-        deductions: Deductions::default(),
-    };
-    return form;
+pub fn load_gpd_form(input_file: String) -> FbihtaxResult<GpdForm> {
+    match Form::load(input_file) {
+        Ok(file) => Ok(GpdForm {
+            pdf_form: file,
+            fields: HashMap::new(),
+            gip_info: None,
+            ams_info: None,
+            deductions: Deductions::default(),
+        }),
+        Err(err) => Err(err.into()),
+    }
 }

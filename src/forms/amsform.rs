@@ -4,6 +4,7 @@ use std::{collections::HashMap, ops::Add};
 
 use crate::{
     db::AmsInfo,
+    error::{FbihtaxError, FbihtaxResult},
     forms::formutils::{fill_field, format_money_value},
 };
 use pdf_forms::Form;
@@ -95,26 +96,36 @@ pub struct AmsForm {
     income_lines: Vec<IncomeLine>,
 }
 
-fn fill_repeating_field(pdf_form: &mut Form, line: u32, field: RepeatingFormField, value: String) {
+fn fill_repeating_field(
+    pdf_form: &mut Form,
+    line: u32,
+    field: RepeatingFormField,
+    value: String,
+) -> FbihtaxResult<()> {
     fill_field(
         pdf_form,
         (field as u32 + REPEATING_FIELDS_START + line * REPEATED_FIELDS_COUNT)
             .try_into()
             .unwrap(),
         value,
-    );
+    )
 }
 
 impl AmsForm {
-    pub fn fill_main_field(&mut self, field: FormField, value: String) {
+    pub fn fill_main_field(&mut self, field: FormField, value: String) -> FbihtaxResult<()> {
         self.fields.insert(field as usize, value.clone());
-        fill_field(&mut self.pdf_form, field as usize, value);
+        fill_field(&mut self.pdf_form, field as usize, value)
     }
 
-    fn fill_repeating_field(&mut self, line: u32, field: RepeatingFormField, value: String) {
+    fn fill_repeating_field(
+        &mut self,
+        line: u32,
+        field: RepeatingFormField,
+        value: String,
+    ) -> FbihtaxResult<()> {
         let field_index = field as u32 + REPEATING_FIELDS_START + line * REPEATED_FIELDS_COUNT;
         self.fields.insert(field_index as usize, value.clone());
-        fill_repeating_field(&mut self.pdf_form, line, field, value);
+        fill_repeating_field(&mut self.pdf_form, line, field, value)
     }
 
     pub fn add_income(&mut self, base_value: Decimal, tax_paid_abroad: Decimal) -> AmsInfo {
@@ -137,10 +148,10 @@ impl AmsForm {
         };
     }
 
-    fn fill_income_lines(&mut self) {
+    fn fill_income_lines(&mut self) -> FbihtaxResult<()> {
         // TODO: Handle multiple pages
-        self.fill_main_field(FormField::PageNumber, "1".to_string());
-        self.fill_main_field(FormField::PageCount, "1".to_string());
+        self.fill_main_field(FormField::PageNumber, "1".to_string())?;
+        self.fill_main_field(FormField::PageCount, "1".to_string())?;
         let total = self
             .income_lines
             .iter()
@@ -153,56 +164,57 @@ impl AmsForm {
                 counter,
                 RepeatingFormField::IncomeValue,
                 format_money_value(income_line.value),
-            );
+            )?;
             self.fill_repeating_field(
                 counter,
                 RepeatingFormField::HealthInsurance,
                 format_money_value(income_line.health_insurance),
-            );
+            )?;
             self.fill_repeating_field(
                 counter,
                 RepeatingFormField::TaxBase,
                 format_money_value(income_line.tax_base),
-            );
+            )?;
             self.fill_repeating_field(
                 counter,
                 RepeatingFormField::TaxAmount,
                 format_money_value(income_line.tax_amount),
-            );
+            )?;
             self.fill_repeating_field(
                 counter,
                 RepeatingFormField::TaxPaidAbroad,
                 format_money_value(income_line.tax_paid_abroad),
-            );
+            )?;
             self.fill_repeating_field(
                 counter,
                 RepeatingFormField::TaxToPay,
                 format_money_value(income_line.tax_to_pay),
-            );
+            )?;
             counter += 1;
         }
         self.fill_main_field(
             FormField::HealthInsuranceTotal,
             format_money_value(total.health_insurance),
-        );
-        self.fill_main_field(FormField::TaxBaseTotal, format_money_value(total.tax_base));
+        )?;
+        self.fill_main_field(FormField::TaxBaseTotal, format_money_value(total.tax_base))?;
         self.fill_main_field(
             FormField::TaxAmountTotal,
             format_money_value(total.tax_amount),
-        );
+        )?;
         self.fill_main_field(
             FormField::TaxPairAbroadTotal,
             format_money_value(total.tax_paid_abroad),
-        );
+        )?;
         self.fill_main_field(
             FormField::TaxToPayTotal,
             format_money_value(total.tax_to_pay),
-        );
+        )
     }
 
-    pub fn to_dict(&mut self) -> HashMap<String, String> {
-        self.fill_income_lines();
-        self.fields
+    pub fn to_dict(&mut self) -> FbihtaxResult<HashMap<String, String>> {
+        self.fill_income_lines()?;
+        Ok(self
+            .fields
             .iter()
             .map(|(k, v)| match self.pdf_form.get_name(k.clone()) {
                 Some(name) => (name, v.clone()),
@@ -217,14 +229,15 @@ impl AmsForm {
                 }
             })
             .filter(|(k, _)| !k.is_empty())
-            .collect()
+            .collect())
     }
 
-    pub fn get_number_field_value(&self, field: FormField) -> Decimal {
-        Decimal::from_str_radix(self.get_text_field_value(field).as_str(), 10).unwrap()
+    pub fn get_number_field_value(&self, field: FormField) -> FbihtaxResult<Decimal> {
+        Decimal::from_str_radix(self.get_text_field_value(field)?.as_str(), 10)
+            .map_err(|err| FbihtaxError::UnexpectedCondition(err.to_string()))
     }
 
-    pub fn get_text_field_value(&self, field: FormField) -> String {
+    pub fn get_text_field_value(&self, field: FormField) -> FbihtaxResult<String> {
         println!(
             "Loading text field {} of {}",
             field as usize,
@@ -237,18 +250,23 @@ impl AmsForm {
                 required,
             } => {
                 println!("Loaded text: {}", text);
-                text
+                Ok(text)
             }
-            _ => panic!("Unsupported field type!"),
+            _ => Err(FbihtaxError::UnexpectedCondition(
+                "Unsupported field type!".to_string(),
+            )),
         }
     }
 }
 
-pub fn load_ams_form(input_file: String) -> AmsForm {
-    AmsForm {
-        pdf_form: Form::load(input_file).unwrap(),
-        fields: HashMap::new(),
-        income_lines: Vec::new(),
+pub fn load_ams_form(input_file: String) -> FbihtaxResult<AmsForm> {
+    match Form::load(input_file) {
+        Ok(file) => Ok(AmsForm {
+            pdf_form: file,
+            fields: HashMap::new(),
+            income_lines: Vec::new(),
+        }),
+        Err(err) => Err(err.into()),
     }
 }
 

@@ -1,7 +1,7 @@
 pub mod printer;
 pub mod utils;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum OutputFormat {
     Pdf,
     Fdf,

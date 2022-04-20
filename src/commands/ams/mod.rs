@@ -6,6 +6,7 @@ use std::{fs::File, path::Path};
 use crate::{
     config::{self, ClientConfig, Config, UserConfig},
     db::{self, AmsInfo, TaxDb},
+    error::{FbihtaxError, FbihtaxResult, UserErrorKind},
     format::printer::{FdfPrinter, JsonPrinter, PdfPrinter, Printer, XfdfPrinter},
     format::OutputFormat,
     forms::amsform::{self, FormField},
@@ -22,7 +23,10 @@ pub struct AmsArgs {
         help = "Decimal income value in BAM (will be rounded to 2 decimals)"
     )]
     income: Decimal,
-    #[clap(long, help = "Invoice date (YYYY-MM-DD). Must be present for DB to work")]
+    #[clap(
+        long,
+        help = "Invoice date (YYYY-MM-DD). Must be present for DB to work"
+    )]
     invoice_date: Option<String>,
     #[clap(
         short,
@@ -51,26 +55,22 @@ pub struct AmsArgs {
     skip_db: bool,
 }
 
-pub fn handle_command(config: Config, args: &AmsArgs) {
+pub fn handle_command(config: Config, args: &AmsArgs) -> FbihtaxResult<()> {
     if !Path::new(config.ams.cache_location.as_str()).exists() {
         println!(
             "Cached AMS form not found at: {}\nResorting to download from: {}",
-            config.ams.cache_location, config.ams.download_url
+            config.ams.cache_location, config.ams.download_url,
         );
-        let mut result = reqwest::blocking::get(config.ams.download_url.to_string())
-            .expect("Failed downloading form PDF");
-        let mut file_writer =
-            File::create(config.ams.cache_location.as_str()).expect("Failed creating cache file");
-        result
-            .copy_to(&mut file_writer)
-            .expect("Failed saving downloaded PDF");
+        let mut result = reqwest::blocking::get(config.ams.download_url.to_string())?;
+        let mut file_writer = File::create(config.ams.cache_location.as_str())?;
+        result.copy_to(&mut file_writer)?;
         println!(
             "Downloaded AMS form and cached to: {}",
-            config.ams.cache_location
+            config.ams.cache_location,
         );
     }
 
-    let mut form = amsform::load_ams_form(config.ams.cache_location.clone());
+    let mut form = amsform::load_ams_form(config.ams.cache_location.clone())?;
 
     let fdf_printer = FdfPrinter {};
     let xfdf_printer = XfdfPrinter {};
@@ -86,7 +86,11 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
         OutputFormat::Fdf => &fdf_printer,
         OutputFormat::Xfdf => &xfdf_printer,
         OutputFormat::Json => &json_printer,
-        _ => panic!("Unsupported format!"),
+        format => {
+            return Err(FbihtaxError::UserError(
+                UserErrorKind::UnsupportedOutputFormat(format),
+            ))
+        }
     };
 
     let income_dec: Decimal = args.income.round_dp(2);
@@ -94,39 +98,47 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
     let income_after = income_dec * deduction_factor;
 
     let user_config = match &args.user_config {
-        Some(path) => config::parse_config::<UserConfig>(path.as_str()),
-        None => match &config.user {
-            Some(user_config) => Some(user_config.clone()),
-            None => None
+        Some(path) => config::parse_config::<UserConfig>(path.as_str())?,
+        None => {
+            config
+                .user
+                .clone()
+                .ok_or(FbihtaxError::UserError(UserErrorKind::MissingConfig(
+                    "user configuration".to_string(),
+                    "--user-config".to_string(),
+                )))?
         }
-    }.expect("Missing user configuration. Either fill it in default config file or pass --user-config parameter.");
-    form.fill_main_field(FormField::UserName, user_config.name);
-    form.fill_main_field(FormField::UserAddress, user_config.address);
-    form.fill_main_field(FormField::UserJmbg, user_config.jmbg);
+    };
+    form.fill_main_field(FormField::UserName, user_config.name)?;
+    form.fill_main_field(FormField::UserAddress, user_config.address)?;
+    form.fill_main_field(FormField::UserJmbg, user_config.jmbg)?;
 
     if let Some(invoice_date) = &args.invoice_date {
         if let Some((year, rest)) = invoice_date.split_once("-") {
             if let Some((month, day)) = rest.split_once("-") {
                 let year_last_2 = &year[2..year.len()];
-                form.fill_main_field(FormField::TaxPeriodMonth, month.to_string());
-                form.fill_main_field(FormField::TaxPeriodYearLast2Digits, year_last_2.to_string());
-                form.fill_main_field(FormField::PaymentDateDay, day.to_string());
-                form.fill_main_field(FormField::PaymentDateMonth, month.to_string());
-                form.fill_main_field(FormField::PaymentDateYear, year_last_2.to_string());
+                form.fill_main_field(FormField::TaxPeriodMonth, month.to_string())?;
+                form.fill_main_field(FormField::TaxPeriodYearLast2Digits, year_last_2.to_string())?;
+                form.fill_main_field(FormField::PaymentDateDay, day.to_string())?;
+                form.fill_main_field(FormField::PaymentDateMonth, month.to_string())?;
+                form.fill_main_field(FormField::PaymentDateYear, year_last_2.to_string())?;
             }
         }
     }
 
-    let client_config = match &args.client_config {
-        Some(path) => config::parse_config::<ClientConfig>(path.as_str()),
-        None => match &config.client {
-            Some(client_config) => Some(client_config.clone()),
-            None => None
-        }
-    }.expect("Missing client configuration. Either fill it in default config file or pass --client-config parameter.");
-    form.fill_main_field(FormField::CompanyName, client_config.name);
-    form.fill_main_field(FormField::CompanyAddress, client_config.address);
-    form.fill_main_field(FormField::CompanyCountry, client_config.country);
+    let client_config =
+        match &args.user_config {
+            Some(path) => config::parse_config::<ClientConfig>(path.as_str())?,
+            None => config.client.clone().ok_or(FbihtaxError::UserError(
+                UserErrorKind::MissingConfig(
+                    "client configuration".to_string(),
+                    "--client-config".to_string(),
+                ),
+            ))?,
+        };
+    form.fill_main_field(FormField::CompanyName, client_config.name)?;
+    form.fill_main_field(FormField::CompanyAddress, client_config.address)?;
+    form.fill_main_field(FormField::CompanyCountry, client_config.country)?;
 
     let ams_info = form.add_income(income_after, dec!(0));
 
@@ -134,27 +146,32 @@ pub fn handle_command(config: Config, args: &AmsArgs) {
     let mut output_file_path = output_path.join(args.output.clone());
     let extension = format!("{}", args.output_format);
     output_file_path.set_extension(extension);
-    let output_file_path_str = output_file_path
-        .to_str()
-        .expect("Output location seems to be invalid!");
+    let output_file_path_str =
+        output_file_path
+            .to_str()
+            .ok_or(FbihtaxError::UserError(UserErrorKind::Generic(
+                "Output location seems to be invalid!".to_string(),
+            )))?;
 
-    printer.write_to_file(form.to_dict(), output_file_path_str);
+    printer.write_to_file(form.to_dict()?, output_file_path_str)?;
     println!("Saved AMS form to: {}", output_file_path_str);
 
     if !args.skip_db {
         if let Some(invoice_date) = &args.invoice_date {
-            write_to_db(&config, ams_info, invoice_date.clone());
+            write_to_db(&config, ams_info, invoice_date.clone())?;
         }
     }
+    Ok(())
 }
 
-fn write_to_db(config: &Config, ams_info: AmsInfo, invoice_date: String) {
+fn write_to_db(config: &Config, ams_info: AmsInfo, invoice_date: String) -> FbihtaxResult<()> {
     println!("Loading database file");
     let mut tax_db: TaxDb = db::parse_db_with_default(config.db_location.as_str());
     tax_db.add_ams_info(ams_info, invoice_date);
-    tax_db.write_to_file(config.db_location.as_str());
+    tax_db.write_to_file(config.db_location.as_str())?;
     println!(
         "Successfully updated DB file: {}",
-        config.db_location.as_str()
+        config.db_location.as_str(),
     );
+    Ok(())
 }
