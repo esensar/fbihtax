@@ -10,6 +10,7 @@ use crate::{
     format::printer::{FdfPrinter, JsonPrinter, PdfPrinter, Printer, XfdfPrinter},
     format::OutputFormat,
     forms::amsform::{self, FormField},
+    taxcalculator,
 };
 use clap::Parser;
 use rust_decimal::Decimal;
@@ -93,9 +94,10 @@ pub fn handle_command(config: Config, args: &AmsArgs) -> FbihtaxResult<()> {
         }
     };
 
-    let income_dec: Decimal = args.income.round_dp(2);
-    let deduction_factor: Decimal = dec!(1) - (args.deduction_percentage.round_dp(2) * dec!(0.01));
-    let income_after = income_dec * deduction_factor;
+    let deduced_income = taxcalculator::income_after_deduction(
+        args.income.round_dp(2),
+        args.deduction_percentage.round_dp(2),
+    );
 
     let user_config = match &args.user_config {
         Some(path) => config::parse_config::<UserConfig>(path.as_str())?,
@@ -140,7 +142,7 @@ pub fn handle_command(config: Config, args: &AmsArgs) -> FbihtaxResult<()> {
     form.fill_main_field(FormField::CompanyAddress, client_config.address)?;
     form.fill_main_field(FormField::CompanyCountry, client_config.country)?;
 
-    let ams_info = form.add_income(income_after, dec!(0));
+    let ams_info = form.add_income(deduced_income, dec!(0));
 
     let output_path = Path::new(config.output_location.as_str());
     let mut output_file_path = output_path.join(args.output.clone());

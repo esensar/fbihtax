@@ -6,6 +6,7 @@ use crate::{
     db::AmsInfo,
     error::{FbihtaxError, FbihtaxResult},
     forms::formutils::{fill_field, format_money_value},
+    taxcalculator,
 };
 use pdf_forms::Form;
 use rust_decimal::Decimal;
@@ -129,9 +130,9 @@ impl AmsForm {
     }
 
     pub fn add_income(&mut self, base_value: Decimal, tax_paid_abroad: Decimal) -> AmsInfo {
-        let health_insurance = base_value * dec!(0.04);
-        let tax_base = base_value - health_insurance;
-        let tax_amount: Decimal = tax_base * dec!(0.10);
+        let health_insurance = taxcalculator::health_insurance_part(base_value);
+        let tax_base = taxcalculator::tax_base(base_value);
+        let tax_amount = taxcalculator::tax_amount(base_value);
         let tax_to_pay = tax_amount - tax_paid_abroad;
         let income_line = IncomeLine {
             value: base_value,

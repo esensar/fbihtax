@@ -15,6 +15,7 @@ use crate::{
     error::{FbihtaxError, FbihtaxResult, UserErrorKind},
     format::printer::{JsonPrinter, Printer, StdoutPrinter},
     format::{utils::fill_template, OutputFormat},
+    taxcalculator,
 };
 
 use self::data::TaxBreakdownData;
@@ -123,15 +124,10 @@ pub fn handle_command(config: Config, args: &TaxBreakdownArgs) -> FbihtaxResult<
         }
     };
 
-    let income_dec: Decimal = args.income.round_dp(2);
-    let deduction_factor: Decimal = dec!(1) - (args.deduction_percentage.round_dp(2) * dec!(0.01));
-    let income_after = income_dec * deduction_factor;
-
-    let health_insurance = income_after * dec!(0.04);
-    let tax_base = income_after - health_insurance;
-    let tax_amount: Decimal = tax_base * dec!(0.10);
-    let health_insurance_federation = health_insurance * dec!(0.1020);
-    let health_insurance_canton = health_insurance - health_insurance_federation; // or *0.8980, but this is more accurate
+    let deduced_income = taxcalculator::income_after_deduction(
+        args.income.round_dp(2),
+        args.deduction_percentage.round_dp(2),
+    );
 
     let output_path = Path::new(config.output_location.as_str());
     let output_file_path = output_path.join(&args.output);
@@ -142,9 +138,9 @@ pub fn handle_command(config: Config, args: &TaxBreakdownArgs) -> FbihtaxResult<
                 "Output location seems to be invalid!".to_string(),
             )))?;
     let data = TaxBreakdownData {
-        income_tax: tax_amount,
-        health_insurance_federation,
-        health_insurance_canton,
+        income_tax: taxcalculator::tax_amount(deduced_income),
+        health_insurance_federation: taxcalculator::health_insurance_federation(deduced_income),
+        health_insurance_canton: taxcalculator::health_insurance_canton(deduced_income),
     };
     printer.write_to_file(data.to_dict(), output_file_path_str)
 }

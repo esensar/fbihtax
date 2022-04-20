@@ -9,6 +9,7 @@ use crate::{
     config::Config,
     db::{self, TaxDb},
     error::{FbihtaxError, FbihtaxResult, UserErrorKind},
+    taxcalculator,
 };
 
 #[derive(Parser, Debug)]
@@ -37,11 +38,10 @@ pub struct InsertArgs {
 
 pub fn handle_command(config: Config, args: &InsertArgs) -> FbihtaxResult<()> {
     let income = match &args.income {
-        Some(inc) => {
-            let deduction_factor: Decimal =
-                dec!(1) - (args.deduction_percentage.round_dp(2) * dec!(0.01));
-            inc * deduction_factor
-        }
+        Some(inc) => taxcalculator::income_after_deduction(
+            inc.round_dp(2),
+            args.deduction_percentage.round_dp(2),
+        ),
         None => match &args.deduced_income {
             Some(deduced_income) => deduced_income.clone(),
             None => {
@@ -51,15 +51,11 @@ pub fn handle_command(config: Config, args: &InsertArgs) -> FbihtaxResult<()> {
             }
         },
     };
-    // TODO: extract tax calculations into a common module
-    let health_insurance = income * dec!(0.04);
-    let tax_base = income - health_insurance;
-    let tax_amount: Decimal = tax_base * dec!(0.10);
     let mut tax_db: TaxDb = db::parse_db_with_default(config.db_location.as_str());
     tax_db.add_ams_info(
         db::AmsInfo {
             income_total: income,
-            tax_paid: tax_amount,
+            tax_paid: taxcalculator::tax_amount(income),
         },
         args.invoice_date.clone(),
     );

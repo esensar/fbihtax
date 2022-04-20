@@ -8,6 +8,7 @@ mod error;
 mod fdf;
 mod format;
 mod forms;
+mod taxcalculator;
 use clap::{AppSettings, Parser, Subcommand};
 use commands::ams::{self, AmsArgs};
 use commands::db::DbArgs;
