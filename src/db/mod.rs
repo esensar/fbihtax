@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use crate::error::{FbihtaxError, FbihtaxResult};
+use crate::error::{Error, Result};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -57,17 +57,17 @@ impl TaxDb {
         self.ams.insert(invoice_date, ams_info);
     }
 
-    pub fn write_to_file(&self, file: &str) -> FbihtaxResult<()> {
+    pub fn write_to_file(&self, file: &str) -> Result<()> {
         let breakdown_writer = File::create(file)?;
-        serde_json::to_writer_pretty(breakdown_writer, &self).map_err(FbihtaxError::from)
+        serde_json::to_writer_pretty(breakdown_writer, &self).map_err(Error::from)
     }
 }
 
-fn parse_from_reader<T: DeserializeOwned>(reader: BufReader<File>) -> FbihtaxResult<T> {
-    serde_json::from_reader(reader).map_err(FbihtaxError::from)
+fn parse_from_reader<T: DeserializeOwned>(reader: BufReader<File>) -> Result<T> {
+    serde_json::from_reader(reader).map_err(Error::from)
 }
 
-pub fn parse_db<T: for<'de> Deserialize<'de>>(db_location: &str) -> FbihtaxResult<T> {
+pub fn parse_db<T: for<'de> Deserialize<'de>>(db_location: &str) -> Result<T> {
     parse_from_reader(File::open(db_location).map(BufReader::new)?)
 }
 

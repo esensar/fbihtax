@@ -6,7 +6,7 @@ use pdf_forms::Form;
 use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 
-use crate::{config::UserConfig, error::FbihtaxResult};
+use crate::{config::UserConfig, error::Result};
 
 use super::formutils::{fill_field, format_money_value};
 
@@ -114,12 +114,12 @@ impl Deductions {
 }
 
 impl GpdForm {
-    pub fn fill_field(&mut self, field: FormField, value: String) -> FbihtaxResult<()> {
+    pub fn fill_field(&mut self, field: FormField, value: String) -> Result<()> {
         self.fields.insert(field as usize, value.clone());
         fill_field(&mut self.pdf_form, field as usize, value)
     }
 
-    pub fn fill_user_info(&mut self, value: &UserConfig) -> FbihtaxResult<()> {
+    pub fn fill_user_info(&mut self, value: &UserConfig) -> Result<()> {
         self.fill_field(FormField::UserName, value.name.clone())?;
         self.fill_field(FormField::UserNameP2, value.name.clone())?;
         self.fill_field(FormField::UserJmbg, value.jmbg.clone())?;
@@ -135,7 +135,7 @@ impl GpdForm {
         )
     }
 
-    pub fn fill_year_info(&mut self, year: String) -> FbihtaxResult<()> {
+    pub fn fill_year_info(&mut self, year: String) -> Result<()> {
         let year_last_2 = &year[2..year.len()];
         self.fill_field(FormField::PeriodStart, "0101".to_string())?;
         self.fill_field(FormField::PeriodEnd, "3112".to_string())?;
@@ -165,7 +165,7 @@ impl GpdForm {
         };
     }
 
-    pub fn to_dict(&mut self) -> FbihtaxResult<HashMap<String, String>> {
+    pub fn to_dict(&mut self) -> Result<HashMap<String, String>> {
         let mut total_tax_info = TaxInfo {
             income: dec!(0),
             tax_paid: dec!(0),
@@ -244,7 +244,7 @@ impl GpdForm {
     }
 }
 
-pub fn load_gpd_form(input_file: String) -> FbihtaxResult<GpdForm> {
+pub fn load_gpd_form(input_file: String) -> Result<GpdForm> {
     match Form::load(input_file) {
         Ok(file) => Ok(GpdForm {
             pdf_form: file,

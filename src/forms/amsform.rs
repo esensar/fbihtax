@@ -4,13 +4,12 @@ use std::{collections::HashMap, ops::Add};
 
 use crate::{
     db::AmsInfo,
-    error::{FbihtaxError, FbihtaxResult},
+    error::{Error, Result},
     forms::formutils::{fill_field, format_money_value},
     taxcalculator,
 };
 use pdf_forms::Form;
 use rust_decimal::Decimal;
-use rust_decimal_macros::dec;
 
 #[derive(Clone, Copy)]
 pub enum FormField {
@@ -102,7 +101,7 @@ fn fill_repeating_field(
     line: u32,
     field: RepeatingFormField,
     value: String,
-) -> FbihtaxResult<()> {
+) -> Result<()> {
     fill_field(
         pdf_form,
         (field as u32 + REPEATING_FIELDS_START + line * REPEATED_FIELDS_COUNT)
@@ -113,7 +112,7 @@ fn fill_repeating_field(
 }
 
 impl AmsForm {
-    pub fn fill_main_field(&mut self, field: FormField, value: String) -> FbihtaxResult<()> {
+    pub fn fill_main_field(&mut self, field: FormField, value: String) -> Result<()> {
         self.fields.insert(field as usize, value.clone());
         fill_field(&mut self.pdf_form, field as usize, value)
     }
@@ -123,7 +122,7 @@ impl AmsForm {
         line: u32,
         field: RepeatingFormField,
         value: String,
-    ) -> FbihtaxResult<()> {
+    ) -> Result<()> {
         let field_index = field as u32 + REPEATING_FIELDS_START + line * REPEATED_FIELDS_COUNT;
         self.fields.insert(field_index as usize, value.clone());
         fill_repeating_field(&mut self.pdf_form, line, field, value)
@@ -149,7 +148,7 @@ impl AmsForm {
         };
     }
 
-    fn fill_income_lines(&mut self) -> FbihtaxResult<()> {
+    fn fill_income_lines(&mut self) -> Result<()> {
         // TODO: Handle multiple pages
         self.fill_main_field(FormField::PageNumber, "1".to_string())?;
         self.fill_main_field(FormField::PageCount, "1".to_string())?;
@@ -212,7 +211,7 @@ impl AmsForm {
         )
     }
 
-    pub fn to_dict(&mut self) -> FbihtaxResult<HashMap<String, String>> {
+    pub fn to_dict(&mut self) -> Result<HashMap<String, String>> {
         self.fill_income_lines()?;
         Ok(self
             .fields
@@ -233,12 +232,12 @@ impl AmsForm {
             .collect())
     }
 
-    pub fn get_number_field_value(&self, field: FormField) -> FbihtaxResult<Decimal> {
+    pub fn get_number_field_value(&self, field: FormField) -> Result<Decimal> {
         Decimal::from_str_radix(self.get_text_field_value(field)?.as_str(), 10)
-            .map_err(|err| FbihtaxError::UnexpectedCondition(err.to_string()))
+            .map_err(|err| Error::UnexpectedCondition(err.to_string()))
     }
 
-    pub fn get_text_field_value(&self, field: FormField) -> FbihtaxResult<String> {
+    pub fn get_text_field_value(&self, field: FormField) -> Result<String> {
         println!(
             "Loading text field {} of {}",
             field as usize,
@@ -253,14 +252,14 @@ impl AmsForm {
                 println!("Loaded text: {}", text);
                 Ok(text)
             }
-            _ => Err(FbihtaxError::UnexpectedCondition(
+            _ => Err(Error::UnexpectedCondition(
                 "Unsupported field type!".to_string(),
             )),
         }
     }
 }
 
-pub fn load_ams_form(input_file: String) -> FbihtaxResult<AmsForm> {
+pub fn load_ams_form(input_file: String) -> Result<AmsForm> {
     match Form::load(input_file) {
         Ok(file) => Ok(AmsForm {
             pdf_form: file,

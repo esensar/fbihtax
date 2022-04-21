@@ -3,7 +3,7 @@ extern crate serde_json;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::{fs::File, io::BufReader};
 
-use crate::error::{FbihtaxError, FbihtaxResult};
+use crate::error::{Error, Result};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -134,11 +134,11 @@ impl Default for Config {
     }
 }
 
-fn parse_from_reader<T: DeserializeOwned>(reader: BufReader<File>) -> FbihtaxResult<T> {
-    serde_json::from_reader(reader).map_err(FbihtaxError::from)
+fn parse_from_reader<T: DeserializeOwned>(reader: BufReader<File>) -> Result<T> {
+    serde_json::from_reader(reader).map_err(Error::from)
 }
 
-pub fn parse_config<T: for<'de> Deserialize<'de>>(config_location: &str) -> FbihtaxResult<T> {
+pub fn parse_config<T: for<'de> Deserialize<'de>>(config_location: &str) -> Result<T> {
     parse_from_reader(File::open(config_location).map(BufReader::new)?)
 }
 

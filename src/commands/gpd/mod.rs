@@ -6,7 +6,7 @@ use std::{fs::File, path::Path};
 use crate::{
     config::{self, Config, UserConfig},
     db::{self, TaxDb},
-    error::{FbihtaxError, FbihtaxResult, UserErrorKind},
+    error::{self, Error, UserErrorKind},
     format::printer::{FdfPrinter, JsonPrinter, PdfPrinter, Printer, XfdfPrinter},
     format::OutputFormat,
     forms::gpdform::{self, FormField},
@@ -50,7 +50,7 @@ pub struct GpdArgs {
     output: String,
 }
 
-pub fn handle_command(config: Config, args: &GpdArgs) -> FbihtaxResult<()> {
+pub fn handle_command(config: Config, args: &GpdArgs) -> error::Result<()> {
     if !Path::new(config.gpd.cache_location.as_str()).exists() {
         println!(
             "Cached GPD form not found at: {}\nResorting to download from: {}",
@@ -83,23 +83,21 @@ pub fn handle_command(config: Config, args: &GpdArgs) -> FbihtaxResult<()> {
         OutputFormat::Xfdf => &xfdf_printer,
         OutputFormat::Json => &json_printer,
         format => {
-            return Err(FbihtaxError::UserError(
-                UserErrorKind::UnsupportedOutputFormat(format),
-            ))
+            return Err(Error::UserError(UserErrorKind::UnsupportedOutputFormat(
+                format,
+            )))
         }
     };
 
     let user_config = match &args.user_config {
         Some(path) => config::parse_config::<UserConfig>(path.as_str())?,
-        None => {
-            config
-                .user
-                .clone()
-                .ok_or(FbihtaxError::UserError(UserErrorKind::MissingConfig(
-                    "user configuration".to_string(),
-                    "--user-config".to_string(),
-                )))?
-        }
+        None => config
+            .user
+            .clone()
+            .ok_or(Error::UserError(UserErrorKind::MissingConfig(
+                "user configuration".to_string(),
+                "--user-config".to_string(),
+            )))?,
     };
     form.fill_user_info(&user_config)?;
     form.fill_year_info(args.year.clone())?;
@@ -121,7 +119,7 @@ pub fn handle_command(config: Config, args: &GpdArgs) -> FbihtaxResult<()> {
     let output_file_path_str =
         output_file_path
             .to_str()
-            .ok_or(FbihtaxError::UserError(UserErrorKind::Generic(
+            .ok_or(Error::UserError(UserErrorKind::Generic(
                 "Output location seems to be invalid!".to_string(),
             )))?;
 

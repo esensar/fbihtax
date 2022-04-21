@@ -5,7 +5,7 @@ use clap::Parser;
 use crate::{
     config::Config,
     db::{self, TaxDb},
-    error::FbihtaxResult,
+    error,
     forms::amsform::{self, FormField},
 };
 
@@ -15,7 +15,7 @@ pub struct LoadArgs {
     file: Vec<String>,
 }
 
-pub fn handle_command(config: Config, args: &LoadArgs) -> FbihtaxResult<()> {
+pub fn handle_command(config: Config, args: &LoadArgs) -> error::Result<()> {
     let mut tax_db: TaxDb = db::parse_db_with_default(config.db_location.as_str());
 
     for file in &args.file {

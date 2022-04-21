@@ -8,7 +8,7 @@ use rust_decimal_macros::dec;
 use crate::{
     config::Config,
     db::{self, TaxDb},
-    error::{FbihtaxError, FbihtaxResult, UserErrorKind},
+    error::{self, Error, UserErrorKind},
     taxcalculator,
 };
 
@@ -36,7 +36,7 @@ pub struct InsertArgs {
     invoice_date: String,
 }
 
-pub fn handle_command(config: Config, args: &InsertArgs) -> FbihtaxResult<()> {
+pub fn handle_command(config: Config, args: &InsertArgs) -> error::Result<()> {
     let income = match &args.income {
         Some(inc) => taxcalculator::income_after_deduction(
             inc.round_dp(2),
@@ -45,7 +45,7 @@ pub fn handle_command(config: Config, args: &InsertArgs) -> FbihtaxResult<()> {
         None => match &args.deduced_income {
             Some(deduced_income) => deduced_income.clone(),
             None => {
-                return Err(FbihtaxError::UserError(UserErrorKind::Generic(
+                return Err(Error::UserError(UserErrorKind::Generic(
                     "Provide either --income or --deduced-income!".to_string(),
                 )))
             }

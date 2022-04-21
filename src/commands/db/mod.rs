@@ -4,7 +4,7 @@ extern crate rust_decimal;
 mod insert;
 mod load;
 
-use crate::{config::Config, error::FbihtaxResult};
+use crate::{config::Config, error};
 use clap::{AppSettings, Parser, Subcommand};
 
 use self::{insert::InsertArgs, load::LoadArgs};
@@ -24,7 +24,7 @@ enum DbCommands {
     Insert(InsertArgs),
 }
 
-pub fn handle_command(config: Config, args: &DbArgs) -> FbihtaxResult<()> {
+pub fn handle_command(config: Config, args: &DbArgs) -> error::Result<()> {
     match &args.command {
         DbCommands::Load(load_args) => load::handle_command(config, load_args),
         DbCommands::Insert(insert_args) => insert::handle_command(config, insert_args),

@@ -15,7 +15,6 @@ use commands::db::DbArgs;
 use commands::gpd::{self, GpdArgs};
 use commands::taxbreakdown::{self, TaxBreakdownArgs};
 use config::Config;
-use error::FbihtaxResult;
 
 #[derive(Parser, Debug)]
 #[clap(about, version, author)]
@@ -44,7 +43,7 @@ enum Commands {
     TaxBreakdown(TaxBreakdownArgs),
 }
 
-fn main() -> FbihtaxResult<()> {
+fn main() -> error::Result<()> {
     let args = CliArgs::parse();
 
     let config: Config = config::parse_config_with_default(args.config.as_str());

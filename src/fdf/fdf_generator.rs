@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs::File, io::Write};
 
-use crate::error::FbihtaxResult;
+use crate::error::Result;
 
 static HEADER: &str = concat!("%FDF-1.2\n", "1 0 obj<</FDF<< /Fields[\n");
 static FOOTER: &str = concat!(
@@ -45,7 +45,7 @@ impl FdfData {
     }
 }
 
-pub fn write_xfdf(data: FdfData, output_file: String) -> FbihtaxResult<()> {
+pub fn write_xfdf(data: FdfData, output_file: String) -> Result<()> {
     let mut fdf_file = File::create(output_file)?;
     fdf_file.write_all(XFDF_HEADER.as_bytes())?;
     for entry in data.entries {
@@ -61,7 +61,7 @@ pub fn write_xfdf(data: FdfData, output_file: String) -> FbihtaxResult<()> {
     Ok(())
 }
 
-pub fn write_fdf(data: FdfData, output_file: String) -> FbihtaxResult<()> {
+pub fn write_fdf(data: FdfData, output_file: String) -> Result<()> {
     let mut fdf_file = File::create(output_file)?;
     fdf_file.write_all(HEADER.as_bytes())?;
     for entry in data.entries {

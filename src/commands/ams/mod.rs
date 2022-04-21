@@ -6,7 +6,7 @@ use std::{fs::File, path::Path};
 use crate::{
     config::{self, ClientConfig, Config, UserConfig},
     db::{self, AmsInfo, TaxDb},
-    error::{FbihtaxError, FbihtaxResult, UserErrorKind},
+    error::{self, Error, UserErrorKind},
     format::printer::{FdfPrinter, JsonPrinter, PdfPrinter, Printer, XfdfPrinter},
     format::OutputFormat,
     forms::amsform::{self, FormField},
@@ -56,7 +56,7 @@ pub struct AmsArgs {
     skip_db: bool,
 }
 
-pub fn handle_command(config: Config, args: &AmsArgs) -> FbihtaxResult<()> {
+pub fn handle_command(config: Config, args: &AmsArgs) -> error::Result<()> {
     if !Path::new(config.ams.cache_location.as_str()).exists() {
         println!(
             "Cached AMS form not found at: {}\nResorting to download from: {}",
@@ -88,9 +88,9 @@ pub fn handle_command(config: Config, args: &AmsArgs) -> FbihtaxResult<()> {
         OutputFormat::Xfdf => &xfdf_printer,
         OutputFormat::Json => &json_printer,
         format => {
-            return Err(FbihtaxError::UserError(
-                UserErrorKind::UnsupportedOutputFormat(format),
-            ))
+            return Err(Error::UserError(UserErrorKind::UnsupportedOutputFormat(
+                format,
+            )))
         }
     };
 
@@ -101,15 +101,13 @@ pub fn handle_command(config: Config, args: &AmsArgs) -> FbihtaxResult<()> {
 
     let user_config = match &args.user_config {
         Some(path) => config::parse_config::<UserConfig>(path.as_str())?,
-        None => {
-            config
-                .user
-                .clone()
-                .ok_or(FbihtaxError::UserError(UserErrorKind::MissingConfig(
-                    "user configuration".to_string(),
-                    "--user-config".to_string(),
-                )))?
-        }
+        None => config
+            .user
+            .clone()
+            .ok_or(Error::UserError(UserErrorKind::MissingConfig(
+                "user configuration".to_string(),
+                "--user-config".to_string(),
+            )))?,
     };
     form.fill_main_field(FormField::UserName, user_config.name)?;
     form.fill_main_field(FormField::UserAddress, user_config.address)?;
@@ -128,16 +126,16 @@ pub fn handle_command(config: Config, args: &AmsArgs) -> FbihtaxResult<()> {
         }
     }
 
-    let client_config =
-        match &args.user_config {
-            Some(path) => config::parse_config::<ClientConfig>(path.as_str())?,
-            None => config.client.clone().ok_or(FbihtaxError::UserError(
-                UserErrorKind::MissingConfig(
-                    "client configuration".to_string(),
-                    "--client-config".to_string(),
-                ),
-            ))?,
-        };
+    let client_config = match &args.user_config {
+        Some(path) => config::parse_config::<ClientConfig>(path.as_str())?,
+        None => config
+            .client
+            .clone()
+            .ok_or(Error::UserError(UserErrorKind::MissingConfig(
+                "client configuration".to_string(),
+                "--client-config".to_string(),
+            )))?,
+    };
     form.fill_main_field(FormField::CompanyName, client_config.name)?;
     form.fill_main_field(FormField::CompanyAddress, client_config.address)?;
     form.fill_main_field(FormField::CompanyCountry, client_config.country)?;
@@ -151,7 +149,7 @@ pub fn handle_command(config: Config, args: &AmsArgs) -> FbihtaxResult<()> {
     let output_file_path_str =
         output_file_path
             .to_str()
-            .ok_or(FbihtaxError::UserError(UserErrorKind::Generic(
+            .ok_or(Error::UserError(UserErrorKind::Generic(
                 "Output location seems to be invalid!".to_string(),
             )))?;
 
@@ -166,7 +164,7 @@ pub fn handle_command(config: Config, args: &AmsArgs) -> FbihtaxResult<()> {
     Ok(())
 }
 
-fn write_to_db(config: &Config, ams_info: AmsInfo, invoice_date: String) -> FbihtaxResult<()> {
+fn write_to_db(config: &Config, ams_info: AmsInfo, invoice_date: String) -> error::Result<()> {
     println!("Loading database file");
     let mut tax_db: TaxDb = db::parse_db_with_default(config.db_location.as_str());
     tax_db.add_ams_info(ams_info, invoice_date);

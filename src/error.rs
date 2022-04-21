@@ -1,9 +1,9 @@
-use std::{error::Error, fmt::Display, io};
+use std::{error, fmt::Display, io};
 
 use crate::format::OutputFormat;
 
 #[derive(Debug)]
-pub enum FbihtaxError {
+pub enum Error {
     Io(io::Error),
     Network(reqwest::Error),
     Json(serde_json::Error),
@@ -25,34 +25,34 @@ pub enum PdfErrorKind {
     Load(pdf_forms::LoadError),
 }
 
-impl Error for FbihtaxError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match self {
-            FbihtaxError::Io(err) => Some(err),
-            FbihtaxError::Json(err) => Some(err),
-            FbihtaxError::Pdf(err) => match err {
+            Error::Io(err) => Some(err),
+            Error::Json(err) => Some(err),
+            Error::Pdf(err) => match err {
                 PdfErrorKind::Value(inner) => Some(inner),
                 PdfErrorKind::Load(inner) => Some(inner),
             },
-            FbihtaxError::Network(err) => Some(err),
+            Error::Network(err) => Some(err),
             _ => None,
         }
     }
 
-    fn cause(&self) -> Option<&dyn Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         self.source()
     }
 }
 
-impl Display for FbihtaxError {
+impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FbihtaxError::Io(err) => err.fmt(f),
-            FbihtaxError::Json(err) => err.fmt(f),
-            FbihtaxError::Pdf(err) => err.fmt(f),
-            FbihtaxError::Network(err) => err.fmt(f),
-            FbihtaxError::UserError(message) => message.fmt(f),
-            FbihtaxError::UnexpectedCondition(message) => message.fmt(f),
+            Error::Io(err) => err.fmt(f),
+            Error::Json(err) => err.fmt(f),
+            Error::Pdf(err) => err.fmt(f),
+            Error::Network(err) => err.fmt(f),
+            Error::UserError(message) => message.fmt(f),
+            Error::UnexpectedCondition(message) => message.fmt(f),
         }
     }
 }
@@ -81,34 +81,34 @@ impl Display for PdfErrorKind {
     }
 }
 
-impl From<io::Error> for FbihtaxError {
+impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        FbihtaxError::Io(err)
+        Error::Io(err)
     }
 }
 
-impl From<reqwest::Error> for FbihtaxError {
+impl From<reqwest::Error> for Error {
     fn from(err: reqwest::Error) -> Self {
-        FbihtaxError::Network(err)
+        Error::Network(err)
     }
 }
 
-impl From<serde_json::Error> for FbihtaxError {
+impl From<serde_json::Error> for Error {
     fn from(err: serde_json::Error) -> Self {
-        FbihtaxError::Json(err)
+        Error::Json(err)
     }
 }
 
-impl From<pdf_forms::ValueError> for FbihtaxError {
+impl From<pdf_forms::ValueError> for Error {
     fn from(err: pdf_forms::ValueError) -> Self {
-        FbihtaxError::Pdf(PdfErrorKind::Value(err))
+        Error::Pdf(PdfErrorKind::Value(err))
     }
 }
 
-impl From<pdf_forms::LoadError> for FbihtaxError {
+impl From<pdf_forms::LoadError> for Error {
     fn from(err: pdf_forms::LoadError) -> Self {
-        FbihtaxError::Pdf(PdfErrorKind::Load(err))
+        Error::Pdf(PdfErrorKind::Load(err))
     }
 }
 
-pub type FbihtaxResult<T> = std::result::Result<T, FbihtaxError>;
+pub type Result<T> = std::result::Result<T, Error>;
