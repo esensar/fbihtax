@@ -102,12 +102,14 @@ mod tests {
         dict.insert("entry_two".to_string(), "value_two".to_string());
         let data = FdfData::from_dict(dict);
 
-        let first_entry = &data.entries[0];
-        let second_entry = &data.entries[1];
+        let first_entry = &data.entries.iter().find(|x| x.title == "test").unwrap();
+        let second_entry = &data
+            .entries
+            .iter()
+            .find(|x| x.title == "entry_two")
+            .unwrap();
 
-        assert_eq!("test".to_string(), first_entry.title);
         assert_eq!("value".to_string(), first_entry.value);
-        assert_eq!("entry_two".to_string(), second_entry.title);
         assert_eq!("value_two".to_string(), second_entry.value);
     }
 
@@ -116,12 +118,14 @@ mod tests {
         let mut dict = HashMap::<String, String>::new();
         dict.insert("test".to_string(), "value".to_string());
         dict.insert("entry_two".to_string(), "value_two".to_string());
-        let data = FdfData::from_dict(dict);
+        let mut data = FdfData::from_dict(dict);
+        // entries must be sorted for predictable results
+        data.entries.sort_by(|l, r| l.title.cmp(&r.title));
 
         let mut output_file = temp_dir();
         output_file.push("fbihtax-test.fdf");
 
-        write_fdf(data, output_file.to_str().unwrap().to_string());
+        write_fdf(data, output_file.to_str().unwrap().to_string()).unwrap();
 
         let file = File::open(output_file).unwrap();
         let file_data: Vec<u8> = file.bytes().map(|x| x.unwrap()).collect();
@@ -130,8 +134,8 @@ mod tests {
             concat!(
                 "%FDF-1.2\n",
                 "1 0 obj<</FDF<< /Fields[\n",
-                "<</T(test)/V(value)>>\n",
                 "<</T(entry_two)/V(value_two)>>\n",
+                "<</T(test)/V(value)>>\n",
                 "] >> >>\n",
                 "endobj\n",
                 "trailer\n",

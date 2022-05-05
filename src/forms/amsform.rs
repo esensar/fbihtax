@@ -272,6 +272,8 @@ pub fn load_ams_form(input_file: String) -> Result<AmsForm> {
 
 #[cfg(test)]
 mod tests {
+    use rust_decimal_macros::dec;
+
     use super::*;
 
     #[test]
