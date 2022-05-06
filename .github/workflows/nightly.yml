@@ -30,7 +30,7 @@ jobs:
         fbihtax tax-breakdown --income 1234 --output tax-breakdown-fbihtax.json
     - name: Run tax breakdown example with itbase API
       run: |
-        curl --fail --verbose "https://lab.itbase.ba/api/ams?userFirstName=Test&userLastName=Test&userAddress=Test&userJmbg=1234567890123&clientName=Test&clientAddress=Test&clientCountry=Test&invoiceDate=2022-05-06&2020-05&amount1=1234&payedAbroad1=false&deduction1=20" > tax-breakdown-itbase.json
+        curl --fail --verbose "https://lab.itbase.ba/api/ams?userFirstName=Test&userLastName=Test&userAddress=TestAddress&userJmbg=1234567890123&clientName=Test&clientAddress=TestAddress&clientCountry=Test&invoiceDate=2022-05-06&invoiceMonth2020-05&amount1=1234&payedAbroad1=false&deduction1=20" > tax-breakdown-itbase.json
     - name: Compare values
       run: |
         test $(jq '.income_tax' -r tax-breakdown-fbihtax.json) = $(jq '.tax' -r tax-breakdown-itbase.json)
