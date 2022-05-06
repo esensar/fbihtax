@@ -1,0 +1,38 @@
+name: Nightly checks
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  PDFTK_VERSION: 3.3.2
+
+jobs:
+  compare-to-itbase:
+
+    strategy:
+      matrix:
+        version: [master, latest-release]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install fbihtax from source
+      if: ${{ matrix.version == 'master' }}
+      run: cargo install --path .
+    - name: Install fbihtax from release
+      if: ${{ matrix.version == 'master' }}
+      run: sh -c "$(curl -fsSL https://raw.githubusercontent.com/esensar/fbihtax/main/scripts/install.sh)"
+    - name: Run tax breakdown example with fbihtax
+      run: |
+        fbihtax tax-breakdown --income 1234 --output tax-breakdown-fbihtax.json
+    - name: Run tax breakdown example with itbase API
+      run: |
+        curl --fail --verbose "https://lab.itbase.ba/api/ams?userFirstName=Test&userLastName=Test&userAddress=Test&userJmbg=1234567890123&clientName=Test&clientAddress=Test&clientCountry=Test&invoiceDate=2022-05-06&2020-05&amount1=1234&payedAbroad1=false&deduction1=20" > tax-breakdown-itbase.json
+    - name: Compare values
+      run: |
+        test $(jq '.income_tax' -r tax-breakdown-fbihtax.json) = $(jq '.tax' -r tax-breakdown-itbase.json)
+        test $(jq '.health_insurance.total' -r tax-breakdown-fbihtax.json) = $(jq '.taxZ' -r tax-breakdown-itbase.json)
+        test $(jq '.health_insurance.canton' -r tax-breakdown-fbihtax.json) = $(jq '.taxK' -r tax-breakdown-itbase.json)
+        test $(jq '.health_insurance.federation' -r tax-breakdown-fbihtax.json) = $(jq '.taxF' -r tax-breakdown-itbase.json)

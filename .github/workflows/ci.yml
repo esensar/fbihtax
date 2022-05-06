@@ -8,6 +8,27 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  build:
+
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            extension: ''
+            exe-suffix: linux
+          - os: windows-latest
+            extension: .exe
+            exe-suffix: win
+          - os: macos-latest
+            extension: ''
+            exe-suffix: macos
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --release --verbose
+
   check-format:
 
     runs-on: ubuntu-latest
