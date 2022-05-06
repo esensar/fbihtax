@@ -24,7 +24,7 @@ jobs:
       run: cargo install --path .
     - name: Install fbihtax from release
       if: ${{ matrix.version == 'latest-release' }}
-      run: sh -c "$(curl -fsSL https://raw.githubusercontent.com/esensar/fbihtax/main/scripts/install.sh)"
+      run: sudo sh -c "$(curl -fsSL https://raw.githubusercontent.com/esensar/fbihtax/main/scripts/install.sh)"
     - name: Run tax breakdown example with fbihtax
       run: |
         fbihtax tax-breakdown --income 1234 --output tax-breakdown-fbihtax.json
