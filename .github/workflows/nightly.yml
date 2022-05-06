@@ -23,7 +23,7 @@ jobs:
       if: ${{ matrix.version == 'master' }}
       run: cargo install --path .
     - name: Install fbihtax from release
-      if: ${{ matrix.version == 'master' }}
+      if: ${{ matrix.version == 'latest-release' }}
       run: sh -c "$(curl -fsSL https://raw.githubusercontent.com/esensar/fbihtax/main/scripts/install.sh)"
     - name: Run tax breakdown example with fbihtax
       run: |
