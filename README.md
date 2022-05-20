@@ -23,6 +23,10 @@ or
 $ sudo sh -c "$(fetch -o - https://raw.githubusercontent.com/esensar/fbihtax/main/scripts/install.sh)"
 ```
 
+### Archlinux
+
+[AUR packages are available](https://aur.archlinux.org/packages?K=fbihtax) for ArchLinux.
+
 ### From source
 
 Clone the repository and install `fbihtax` with `cargo`:
